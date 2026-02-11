@@ -1,0 +1,8 @@
+{
+  "name": "Prism Price Dashboard",
+  "description": "A next-generation price comparison dashboard featuring AI-powered search grounding, image analysis for price tags, and real-time subscription tracking.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
