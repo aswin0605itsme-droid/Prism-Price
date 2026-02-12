@@ -2,8 +2,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Always initialize with named parameter and process.env.API_KEY directly.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+let ai: GoogleGenAI | null = null;
+
+// Safely initialize the AI client
+try {
+  const apiKey = process.env.API_KEY;
+  if (apiKey && apiKey.trim().length > 0) {
+    ai = new GoogleGenAI({ apiKey });
+  } else {
+    console.warn("Gemini API Key is missing or empty.");
+  }
+} catch (error) {
+  console.error("Failed to initialize Gemini Client:", error);
+}
+
+// Helper to check configuration status
+export const isApiConfigured = () => !!ai;
 
 // Simple in-memory cache to speed up repeated searches
 const searchCache = new Map<string, Product[]>();
@@ -15,6 +29,11 @@ const suggestionCache = new Map<string, string[]>();
  * Returns a list of structured Product objects.
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
+  if (!ai) {
+    console.warn("API not configured, skipping search.");
+    return [];
+  }
+
   // Check cache first
   const normalizedQuery = query.toLowerCase().trim();
   if (searchCache.has(normalizedQuery)) {
@@ -73,7 +92,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
           const isNotSocial = !urlLower.includes('youtube.com') && 
                               !urlLower.includes('youtu.be') && 
                               !urlLower.includes('facebook.com') && 
-                              !urlLower.includes('instagram.com') &&
+                              !urlLower.includes('instagram.com') && 
                               !urlLower.includes('linkedin.com');
           return isValidData && isNotSocial;
         });
@@ -102,6 +121,8 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
  * Uses gemini-3-pro-preview for complex reasoning.
  */
 export const chatWithAI = async (message: string, history: { role: string; parts: { text: string }[] }[]) => {
+  if (!ai) return "I cannot reply right now because my API key is missing.";
+
   try {
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
@@ -124,6 +145,8 @@ export const chatWithAI = async (message: string, history: { role: string; parts
  * Uses gemini-3-pro-preview for multimodal capabilities.
  */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
+  if (!ai) return "API Key missing.";
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -152,6 +175,7 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
  * Gets dynamic search suggestions based on input.
  */
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
+  if (!ai) return [];
   if (!query || query.length < 2) return [];
   
   const cacheKey = query.toLowerCase().trim();

@@ -8,13 +8,22 @@ import ChatWidget from './components/ChatWidget';
 import ImageAnalysisModal from './components/ImageAnalysisModal';
 import ComparisonSidebar from './components/ComparisonSidebar';
 import { Subscription, Product } from './types';
-import { searchProductsWithGrounding } from './services/geminiService';
-import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, Zap } from 'lucide-react';
+import { searchProductsWithGrounding, isApiConfigured } from './services/geminiService';
+import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, AlertTriangle } from 'lucide-react';
+import GlassCard from './components/GlassCard';
 
 const App: React.FC = () => {
   // Debug Log
   useEffect(() => {
     console.log("App Component Mounted");
+  }, []);
+
+  // API Config State
+  const [isConfigured, setIsConfigured] = useState(true);
+
+  // Check API Configuration on mount
+  useEffect(() => {
+    setIsConfigured(isApiConfigured());
   }, []);
 
   // Currency State
@@ -88,6 +97,12 @@ const App: React.FC = () => {
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) return;
+    
+    if (!isConfigured) {
+      alert("Please configure your API Key to search.");
+      return;
+    }
+
     setIsSearching(true);
     setProducts([]);
     setSortOption('default');
@@ -151,6 +166,22 @@ const App: React.FC = () => {
         searchHistory={searchHistory}
       />
       
+      {!isConfigured && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            <GlassCard className="border-amber-500/30 bg-amber-500/10 !p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-amber-500/20 text-amber-500">
+                        <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white">API Key Missing</h3>
+                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables to enable AI features.</p>
+                    </div>
+                </div>
+            </GlassCard>
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
         {/* Subscriptions */}
