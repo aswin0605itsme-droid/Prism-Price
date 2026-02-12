@@ -16,7 +16,12 @@ const App: React.FC = () => {
   // Debug Log
   useEffect(() => {
     console.log("App Component Mounted");
-    // Check API Key existence as requested
+    // Debug: Check Environment Mode if available
+    if (process.env.NODE_ENV) {
+      console.log('Environment Mode:', process.env.NODE_ENV);
+    }
+
+    // Check API Key existence from process.env
     if (!process.env.API_KEY) { 
         console.error('API Key is missing from Environment Variables'); 
     }
@@ -81,7 +86,7 @@ const App: React.FC = () => {
 
   const recommendedProducts: Product[] = [
     { id: 'rec-1', name: 'iPhone 15 (128GB)', retailer: 'Amazon.in', price: 65999, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://m.media-amazon.com/images/I/71d7rfSl0wL._SX679_.jpg' },
-    { id: 'rec-2', name: 'Sony WH-1000XM5', retailer: 'Reliance Digital', price: 29990, currency: '₹', url: 'https://www.reliancedigital.in', inStock: true, image: 'https://m.media-amazon.com/images/I/51aXvjzcukL._SX679_.jpg' },
+    { id: 'rec-2', name: 'Samsung Galaxy Buds2 Pro', retailer: 'Samsung Shop', price: 9999, currency: '₹', url: 'https://www.samsung.com/in/audio-sound/galaxy-buds/galaxy-buds2-pro-graphite-sm-r510nzaainu/', inStock: true, image: 'https://images.samsung.com/is/image/samsung/p6pim/in/sm-r510nzaainu/gallery/in-galaxy-buds2-pro-r510-sm-r510nzaainu-533190470?$650_519_PNG$' },
     { id: 'rec-3', name: 'MacBook Air M2', retailer: 'Flipkart', price: 89900, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71f5Eu5lJSL._SX679_.jpg' },
     { id: 'rec-4', name: 'Samsung S24 Ultra', retailer: 'Croma', price: 129999, currency: '₹', url: 'https://www.croma.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71RVuS3q9QL._SX679_.jpg' },
   ];
@@ -179,7 +184,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-bold text-white">API Key Missing</h3>
-                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables to enable AI features.</p>
+                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables (API_KEY) to enable AI features.</p>
                     </div>
                 </div>
             </GlassCard>

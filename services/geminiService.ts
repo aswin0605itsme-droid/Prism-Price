@@ -2,12 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Adhering to Google GenAI guidelines: Use process.env.API_KEY directly
+// Note: Using process.env.API_KEY as per coding guidelines.
 const apiKey = process.env.API_KEY;
 
 // Log error if key is missing
 if (!apiKey) {
-  console.error('API Key is missing from Environment Variables');
+  console.error('API Key is missing from Environment Variables (API_KEY)');
 }
 
 let ai: GoogleGenAI | null = null;
@@ -16,9 +16,9 @@ let ai: GoogleGenAI | null = null;
 try {
   if (apiKey && apiKey.trim().length > 0) {
     // Note: Using GoogleGenAI class as per @google/genai library
-    ai = new GoogleGenAI({ apiKey });
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   } else {
-    console.warn("Gemini API Key is missing or empty. Ensure API_KEY is set in your environment.");
+    console.warn("Gemini API Key is missing or empty. Ensure API_KEY is set in your environment variables.");
   }
 } catch (error) {
   console.error("Failed to initialize Gemini Client:", error);
@@ -58,7 +58,10 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
       CRITICAL INSTRUCTIONS:
       1. STRICTLY EXCLUDE social media links.
       2. ONLY return direct e-commerce product page links.
-      3. IMAGE REQUIREMENT: You MUST find a direct URL to the product image.
+      3. IMAGE ACCURACY IS PARAMOUNT:
+         - You MUST find a direct URL to the *specific* product image for '${query}'.
+         - Do NOT use images of related products, sponsored ads, or accessories (e.g. if searching for headphones/buds, DO NOT show a watch).
+         - Verify the image URL is likely to contain the product.
       
       Return a JSON array of objects. Each object must have:
       - id: string
