@@ -2,15 +2,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
+// FIX: Use process.env.API_KEY as per guidelines and to avoid ImportMeta error
+const apiKey = process.env.API_KEY;
+console.log("API Key exists:", !!apiKey);
+
 let ai: GoogleGenAI | null = null;
 
 // Safely initialize the AI client
 try {
-  const apiKey = process.env.API_KEY;
   if (apiKey && apiKey.trim().length > 0) {
     ai = new GoogleGenAI({ apiKey });
   } else {
-    console.warn("Gemini API Key is missing or empty.");
+    console.warn("Gemini API Key is missing or empty. Ensure process.env.API_KEY is set.");
   }
 } catch (error) {
   console.error("Failed to initialize Gemini Client:", error);
@@ -30,6 +33,7 @@ const suggestionCache = new Map<string, string[]>();
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
   if (!ai) {
+    alert("API Key is missing. Please check your configuration.");
     console.warn("API not configured, skipping search.");
     return [];
   }
@@ -88,7 +92,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
         const products = JSON.parse(response.text) as Product[];
         const filtered = products.filter(p => {
           const isValidData = p.price > 0 && p.name && p.url;
-          const urlLower = p.url.toLowerCase();
+          const urlLower = p.url ? p.url.toLowerCase() : '';
           const isNotSocial = !urlLower.includes('youtube.com') && 
                               !urlLower.includes('youtu.be') && 
                               !urlLower.includes('facebook.com') && 
@@ -110,8 +114,9 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     }
     
     return [];
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Search Error:", error);
+    alert(`Search failed: ${error.message || "Unknown error occurred"}`);
     return [];
   }
 };
@@ -121,7 +126,10 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
  * Uses gemini-3-pro-preview for complex reasoning.
  */
 export const chatWithAI = async (message: string, history: { role: string; parts: { text: string }[] }[]) => {
-  if (!ai) return "I cannot reply right now because my API key is missing.";
+  if (!ai) {
+    alert("API Key missing.");
+    return "I cannot reply right now because my API key is missing.";
+  }
 
   try {
     const chat = ai.chats.create({
@@ -134,8 +142,9 @@ export const chatWithAI = async (message: string, history: { role: string; parts
 
     const response = await chat.sendMessage({ message });
     return response.text || "I'm thinking...";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Chat Error:", error);
+    alert(`Chat Error: ${error.message}`);
     return "I encountered an error connecting to the server.";
   }
 };
@@ -145,7 +154,10 @@ export const chatWithAI = async (message: string, history: { role: string; parts
  * Uses gemini-3-pro-preview for multimodal capabilities.
  */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
-  if (!ai) return "API Key missing.";
+  if (!ai) {
+    alert("API Key missing.");
+    return "API Key missing.";
+  }
 
   try {
     const response = await ai.models.generateContent({
@@ -165,8 +177,9 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
       },
     });
     return response.text || "Could not analyze the image.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Vision Error:", error);
+    alert(`Image Analysis Error: ${error.message}`);
     return "Error analyzing image.";
   }
 };
@@ -205,7 +218,8 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
     }
     return [];
   } catch (error) {
-    // console.error("Suggestion Error:", error); // Silently fail for UI
+    // We do not alert on suggestion errors to avoid spamming the user while typing
+    console.error("Suggestion Error (Silent):", error);
     return [];
   }
 };

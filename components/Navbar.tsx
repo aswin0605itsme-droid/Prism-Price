@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X, History, Loader2 } from 'lucide-react';
+import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X, History, Loader2, Clock } from 'lucide-react';
 import { getSearchSuggestions } from '../services/geminiService';
 
 interface NavbarProps {
@@ -27,6 +27,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -74,6 +75,7 @@ const Navbar: React.FC<NavbarProps> = ({
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
         setShowHistory(false);
+        setIsLoadingHistory(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -160,6 +162,8 @@ const Navbar: React.FC<NavbarProps> = ({
                 onFocus={() => {
                   if (inputValue.trim().length === 0 && searchHistory.length > 0) {
                     setShowHistory(true);
+                    setIsLoadingHistory(true);
+                    setTimeout(() => setIsLoadingHistory(false), 800);
                   } else if (filteredSuggestions.length > 0) {
                     setShowSuggestions(true);
                   }
@@ -213,22 +217,40 @@ const Navbar: React.FC<NavbarProps> = ({
                     </ul>
                   ) : (
                     <div className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          <History className="w-3 h-3" /> Recent Searches
-                        </h3>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {searchHistory.slice(0, 5).map((term, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleHistoryClick(term)}
-                            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10 hover:border-indigo-500/30 hover:text-white transition-all duration-200 flex items-center gap-2 group/tag"
-                          >
-                            <span className="truncate max-w-[150px]">{term}</span>
-                          </button>
-                        ))}
-                      </div>
+                      {isLoadingHistory ? (
+                        <div className="flex flex-col items-center justify-center py-6 animate-in fade-in duration-300">
+                           <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mb-2" />
+                           <span className="text-xs font-medium text-slate-500 tracking-wide uppercase">Syncing History...</span>
+                        </div>
+                      ) : (
+                        <div className="animate-in fade-in duration-300">
+                            <div className="flex items-center justify-between mb-3 px-1">
+                                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Clock className="w-3 h-3" /> Recent Searches
+                                </h3>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {searchHistory.slice(0, 5).map((term, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleHistoryClick(term)}
+                                    className="
+                                      group/tag relative pl-3 pr-4 py-2 rounded-full 
+                                      bg-slate-800/40 border border-white/5 
+                                      hover:bg-indigo-500/10 hover:border-indigo-500/30 
+                                      text-slate-400 hover:text-indigo-300 
+                                      text-xs font-medium transition-all duration-300 
+                                      flex items-center gap-2
+                                      hover:shadow-[0_0_15px_-3px_rgba(99,102,241,0.2)]
+                                    "
+                                >
+                                    <History className="w-3 h-3 opacity-50 group-hover/tag:opacity-100 transition-opacity" />
+                                    <span className="truncate max-w-[180px]">{term}</span>
+                                </button>
+                                ))}
+                            </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
