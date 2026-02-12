@@ -7,6 +7,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 // Simple in-memory cache to speed up repeated searches
 const searchCache = new Map<string, Product[]>();
+const suggestionCache = new Map<string, string[]>();
 
 /**
  * Searches for current product prices using Google Search Grounding.
@@ -144,5 +145,43 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
   } catch (error) {
     console.error("Gemini Vision Error:", error);
     return "Error analyzing image.";
+  }
+};
+
+/**
+ * Gets dynamic search suggestions based on input.
+ */
+export const getSearchSuggestions = async (query: string): Promise<string[]> => {
+  if (!query || query.length < 2) return [];
+  
+  const cacheKey = query.toLowerCase().trim();
+  if (suggestionCache.has(cacheKey)) {
+    return suggestionCache.get(cacheKey)!;
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Generate 5 short, popular shopping search terms related to "${query}". Return a JSON array of strings. Example: ["iPhone 15", "iPhone 15 case"].`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      },
+    });
+
+    if (response.text) {
+      const suggestions = JSON.parse(response.text) as string[];
+      if (suggestions.length > 0) {
+        suggestionCache.set(cacheKey, suggestions);
+      }
+      return suggestions;
+    }
+    return [];
+  } catch (error) {
+    // console.error("Suggestion Error:", error); // Silently fail for UI
+    return [];
   }
 };

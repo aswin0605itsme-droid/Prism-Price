@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X, History } from 'lucide-react';
+import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X, History, Loader2 } from 'lucide-react';
+import { getSearchSuggestions } from '../services/geminiService';
 
 interface NavbarProps {
   onSearch: (query: string) => void;
@@ -12,25 +13,6 @@ interface NavbarProps {
   searchHistory: string[];
 }
 
-const SUGGESTIONS = [
-  'iPhone 15 Pro Max',
-  'iPhone 15 (128GB)',
-  'Samsung S24 Ultra',
-  'Samsung Galaxy M34',
-  'Sony WH-1000XM5',
-  'Sony PS5 Console',
-  'MacBook Air M2',
-  'MacBook Pro M3',
-  'Apple Watch Series 9',
-  'AirPods Pro 2',
-  'Nike Air Max',
-  'Adidas Ultraboost',
-  'Atomic Habits Book',
-  'OnePlus 12 5G',
-  'iPad Air M2',
-  'Nintendo Switch OLED'
-];
-
 const Navbar: React.FC<NavbarProps> = ({ 
   onSearch, 
   onOpenAnalysis, 
@@ -41,48 +23,49 @@ const Navbar: React.FC<NavbarProps> = ({
   searchHistory 
 }) => {
   const [inputValue, setInputValue] = useState('');
-  const [suggestion, setSuggestion] = useState('');
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Debounce logic for suggestions
   useEffect(() => {
     const trimmedInput = inputValue.trim();
     
-    if (trimmedInput.length > 0) {
-      // Hide history when typing
-      setShowHistory(false);
-
-      // Inline ghost text logic (starts with)
-      const match = SUGGESTIONS.find(s => 
-        s.toLowerCase().startsWith(trimmedInput.toLowerCase())
-      );
-      if (match && match.toLowerCase() !== trimmedInput.toLowerCase()) {
-        const remaining = match.slice(trimmedInput.length);
-        setSuggestion(trimmedInput + remaining);
-      } else {
-        setSuggestion('');
-      }
-
-      // Dropdown list logic (includes)
-      const filtered = SUGGESTIONS.filter(s => 
-        s.toLowerCase().includes(trimmedInput.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setSuggestion('');
+    // Reset states if input is empty
+    if (trimmedInput.length === 0) {
       setFilteredSuggestions([]);
       setShowSuggestions(false);
-      
-      // Show history if input is cleared and focused
+      setIsLoadingSuggestions(false);
       if (document.activeElement === inputRef.current && searchHistory.length > 0) {
         setShowHistory(true);
       }
+      return;
     }
+
+    setShowHistory(false);
+    setIsLoadingSuggestions(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const suggestions = await getSearchSuggestions(trimmedInput);
+        if (suggestions.length > 0) {
+          setFilteredSuggestions(suggestions);
+          setShowSuggestions(true);
+        } else {
+          setShowSuggestions(false);
+        }
+      } catch (error) {
+        console.error("Failed to fetch suggestions");
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(timer);
   }, [inputValue, searchHistory]);
 
   // Close dropdown when clicking outside
@@ -101,7 +84,6 @@ const Navbar: React.FC<NavbarProps> = ({
     e.preventDefault();
     if (inputValue.trim()) {
       onSearch(inputValue);
-      setSuggestion('');
       setShowSuggestions(false);
       setShowHistory(false);
     }
@@ -109,7 +91,6 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleSuggestionClick = (selected: string) => {
     setInputValue(selected);
-    setSuggestion('');
     setShowSuggestions(false);
     onSearch(selected);
   };
@@ -120,17 +101,8 @@ const Navbar: React.FC<NavbarProps> = ({
     onSearch(item);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Tab' || e.key === 'ArrowRight') && suggestion) {
-      e.preventDefault();
-      setInputValue(suggestion);
-      setSuggestion('');
-    }
-  };
-
   const handleClear = () => {
     setInputValue('');
-    setSuggestion('');
     setFilteredSuggestions([]);
     setShowSuggestions(false);
     if (searchHistory.length > 0) {
@@ -142,14 +114,18 @@ const Navbar: React.FC<NavbarProps> = ({
   // Helper to highlight matching text
   const renderHighlightedText = (text: string, highlight: string) => {
     if (!highlight) return text;
-    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
-    return parts.map((part, index) => 
-      part.toLowerCase() === highlight.toLowerCase() ? (
-        <span key={index} className="text-indigo-400 font-bold">{part}</span>
-      ) : (
-        <span key={index} className="text-slate-300">{part}</span>
-      )
-    );
+    try {
+      const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+      return parts.map((part, index) => 
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <span key={index} className="text-indigo-400 font-bold">{part}</span>
+        ) : (
+          <span key={index} className="text-slate-300">{part}</span>
+        )
+      );
+    } catch (e) {
+      return text;
+    }
   };
 
   return (
@@ -173,18 +149,6 @@ const Navbar: React.FC<NavbarProps> = ({
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
                 <Search className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
               </div>
-              
-              {/* Inline Ghost Text Overlay */}
-              {suggestion && (
-                <div className="absolute inset-y-0 left-0 pl-9 sm:pl-10 pr-3 py-2 sm:py-3 pointer-events-none flex items-center z-10 w-full">
-                  <span className="text-sm leading-5 text-transparent whitespace-pre">
-                    {inputValue}
-                  </span>
-                  <span className="text-sm leading-5 text-slate-500/60 whitespace-pre">
-                    {suggestion.slice(inputValue.length)}
-                  </span>
-                </div>
-              )}
 
               <input
                 ref={inputRef}
@@ -193,17 +157,21 @@ const Navbar: React.FC<NavbarProps> = ({
                 placeholder="Search products..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
                 onFocus={() => {
-                  if (inputValue.trim().length > 0) {
-                    setShowSuggestions(true);
-                  } else if (searchHistory.length > 0) {
+                  if (inputValue.trim().length === 0 && searchHistory.length > 0) {
                     setShowHistory(true);
+                  } else if (filteredSuggestions.length > 0) {
+                    setShowSuggestions(true);
                   }
                 }}
               />
 
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2 z-30">
+                {/* Loading Indicator */}
+                {isLoadingSuggestions && (
+                  <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" />
+                )}
+
                 {/* Clear Button */}
                 {inputValue && (
                   <button
@@ -216,17 +184,11 @@ const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 )}
 
-                {/* Keyboard Hints */}
+                {/* Keyboard Hint */}
                 <div className="hidden sm:flex items-center">
-                  {suggestion ? (
-                    <kbd className="inline-flex items-center border border-indigo-500/30 bg-indigo-500/10 rounded px-2 py-0.5 text-[10px] font-sans font-medium text-indigo-300">
-                      Tab
-                    </kbd>
-                  ) : (
                     <kbd className="inline-flex items-center border border-white/10 rounded px-2 py-0.5 text-[10px] font-sans font-medium text-slate-400">
                       Enter
                     </kbd>
-                  )}
                 </div>
               </div>
 
