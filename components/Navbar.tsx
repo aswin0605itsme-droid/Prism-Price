@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X } from 'lucide-react';
+import { Search, Sparkles, ScanLine, ShoppingBag, Globe, ChevronDown, Scale, X, History } from 'lucide-react';
 
 interface NavbarProps {
   onSearch: (query: string) => void;
@@ -9,6 +9,7 @@ interface NavbarProps {
   setCurrency: (c: string) => void;
   comparisonCount: number;
   onOpenCompare: () => void;
+  searchHistory: string[];
 }
 
 const SUGGESTIONS = [
@@ -30,11 +31,20 @@ const SUGGESTIONS = [
   'Nintendo Switch OLED'
 ];
 
-const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, setCurrency, comparisonCount, onOpenCompare }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  onSearch, 
+  onOpenAnalysis, 
+  currency, 
+  setCurrency, 
+  comparisonCount, 
+  onOpenCompare,
+  searchHistory 
+}) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestion, setSuggestion] = useState('');
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -43,6 +53,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
     const trimmedInput = inputValue.trim();
     
     if (trimmedInput.length > 0) {
+      // Hide history when typing
+      setShowHistory(false);
+
       // Inline ghost text logic (starts with)
       const match = SUGGESTIONS.find(s => 
         s.toLowerCase().startsWith(trimmedInput.toLowerCase())
@@ -64,14 +77,20 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
       setSuggestion('');
       setFilteredSuggestions([]);
       setShowSuggestions(false);
+      
+      // Show history if input is cleared and focused
+      if (document.activeElement === inputRef.current && searchHistory.length > 0) {
+        setShowHistory(true);
+      }
     }
-  }, [inputValue]);
+  }, [inputValue, searchHistory]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setShowHistory(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -84,6 +103,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
       onSearch(inputValue);
       setSuggestion('');
       setShowSuggestions(false);
+      setShowHistory(false);
     }
   };
 
@@ -92,6 +112,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
     setSuggestion('');
     setShowSuggestions(false);
     onSearch(selected);
+  };
+
+  const handleHistoryClick = (item: string) => {
+    setInputValue(item);
+    setShowHistory(false);
+    onSearch(item);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -107,6 +133,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
     setSuggestion('');
     setFilteredSuggestions([]);
     setShowSuggestions(false);
+    if (searchHistory.length > 0) {
+      setShowHistory(true);
+    }
     inputRef.current?.focus();
   };
 
@@ -165,7 +194,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                onFocus={() => inputValue.trim().length > 0 && setShowSuggestions(true)}
+                onFocus={() => {
+                  if (inputValue.trim().length > 0) {
+                    setShowSuggestions(true);
+                  } else if (searchHistory.length > 0) {
+                    setShowHistory(true);
+                  }
+                }}
               />
 
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2 z-30">
@@ -195,25 +230,47 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
                 </div>
               </div>
 
-              {/* Dynamic Suggestions Dropdown */}
-              {showSuggestions && filteredSuggestions.length > 0 && (
+              {/* Dynamic Suggestions & History Dropdown */}
+              {(showSuggestions && filteredSuggestions.length > 0) || (showHistory && searchHistory.length > 0) ? (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-40 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <ul className="max-h-64 overflow-y-auto custom-scrollbar">
-                    {filteredSuggestions.map((item, index) => (
-                      <li 
-                        key={index}
-                        onClick={() => handleSuggestionClick(item)}
-                        className="px-4 py-3 hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors border-b border-white/5 last:border-0 group/item"
-                      >
-                        <Search className="w-4 h-4 text-slate-500 group-hover/item:text-indigo-400 transition-colors" />
-                        <span className="text-sm">
-                          {renderHighlightedText(item, inputValue)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  
+                  {showSuggestions ? (
+                    <ul className="max-h-64 overflow-y-auto custom-scrollbar">
+                      {filteredSuggestions.map((item, index) => (
+                        <li 
+                          key={index}
+                          onClick={() => handleSuggestionClick(item)}
+                          className="px-4 py-3 hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors border-b border-white/5 last:border-0 group/item"
+                        >
+                          <Search className="w-4 h-4 text-slate-500 group-hover/item:text-indigo-400 transition-colors" />
+                          <span className="text-sm">
+                            {renderHighlightedText(item, inputValue)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                          <History className="w-3 h-3" /> Recent Searches
+                        </h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {searchHistory.slice(0, 5).map((term, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleHistoryClick(term)}
+                            className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10 hover:border-indigo-500/30 hover:text-white transition-all duration-200 flex items-center gap-2 group/tag"
+                          >
+                            <span className="truncate max-w-[150px]">{term}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ) : null}
             </form>
           </div>
 
