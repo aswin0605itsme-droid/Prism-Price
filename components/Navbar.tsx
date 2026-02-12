@@ -33,30 +33,65 @@ const SUGGESTIONS = [
 const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, setCurrency, comparisonCount, onOpenCompare }) => {
   const [inputValue, setInputValue] = useState('');
   const [suggestion, setSuggestion] = useState('');
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
   const inputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    if (inputValue.trim().length > 1) {
+    const trimmedInput = inputValue.trim();
+    
+    if (trimmedInput.length > 0) {
+      // Inline ghost text logic (starts with)
       const match = SUGGESTIONS.find(s => 
-        s.toLowerCase().startsWith(inputValue.toLowerCase())
+        s.toLowerCase().startsWith(trimmedInput.toLowerCase())
       );
-      if (match && match.toLowerCase() !== inputValue.toLowerCase()) {
-        const remaining = match.slice(inputValue.length);
-        setSuggestion(inputValue + remaining);
+      if (match && match.toLowerCase() !== trimmedInput.toLowerCase()) {
+        const remaining = match.slice(trimmedInput.length);
+        setSuggestion(trimmedInput + remaining);
       } else {
         setSuggestion('');
       }
+
+      // Dropdown list logic (includes)
+      const filtered = SUGGESTIONS.filter(s => 
+        s.toLowerCase().includes(trimmedInput.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
     } else {
       setSuggestion('');
+      setFilteredSuggestions([]);
+      setShowSuggestions(false);
     }
   }, [inputValue]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (formRef.current && !formRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
       onSearch(inputValue);
       setSuggestion('');
+      setShowSuggestions(false);
     }
+  };
+
+  const handleSuggestionClick = (selected: string) => {
+    setInputValue(selected);
+    setSuggestion('');
+    setShowSuggestions(false);
+    onSearch(selected);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -70,7 +105,22 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
   const handleClear = () => {
     setInputValue('');
     setSuggestion('');
+    setFilteredSuggestions([]);
+    setShowSuggestions(false);
     inputRef.current?.focus();
+  };
+
+  // Helper to highlight matching text
+  const renderHighlightedText = (text: string, highlight: string) => {
+    if (!highlight) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return parts.map((part, index) => 
+      part.toLowerCase() === highlight.toLowerCase() ? (
+        <span key={index} className="text-indigo-400 font-bold">{part}</span>
+      ) : (
+        <span key={index} className="text-slate-300">{part}</span>
+      )
+    );
   };
 
   return (
@@ -90,12 +140,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
 
           {/* Search Bar */}
           <div className="flex-1 max-w-lg mx-1 sm:mx-4 md:mx-8 min-w-0">
-            <form onSubmit={handleSubmit} className="relative group">
+            <form ref={formRef} onSubmit={handleSubmit} className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
                 <Search className="h-4 w-4 sm:h-5 sm:w-5 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
               </div>
               
-              {/* Suggestion Overlay */}
+              {/* Inline Ghost Text Overlay */}
               {suggestion && (
                 <div className="absolute inset-y-0 left-0 pl-9 sm:pl-10 pr-3 py-2 sm:py-3 pointer-events-none flex items-center z-10 w-full">
                   <span className="text-sm leading-5 text-transparent whitespace-pre">
@@ -115,6 +165,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => inputValue.trim().length > 0 && setShowSuggestions(true)}
               />
 
               <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-2 z-30">
@@ -143,6 +194,26 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch, onOpenAnalysis, currency, set
                   )}
                 </div>
               </div>
+
+              {/* Dynamic Suggestions Dropdown */}
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-40 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <ul className="max-h-64 overflow-y-auto custom-scrollbar">
+                    {filteredSuggestions.map((item, index) => (
+                      <li 
+                        key={index}
+                        onClick={() => handleSuggestionClick(item)}
+                        className="px-4 py-3 hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors border-b border-white/5 last:border-0 group/item"
+                      >
+                        <Search className="w-4 h-4 text-slate-500 group-hover/item:text-indigo-400 transition-colors" />
+                        <span className="text-sm">
+                          {renderHighlightedText(item, inputValue)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </form>
           </div>
 
