@@ -2,28 +2,45 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Product } from "../types";
 
-// Fix: Use process.env.API_KEY as per guidelines and to fix ImportMeta error
-const API_KEY = process.env.API_KEY || "";
-
-let ai: GoogleGenAI | null = null;
-
-// 2. Initialize the Gemini Client
-try {
-  if (API_KEY && API_KEY.length > 0) {
-    ai = new GoogleGenAI({ apiKey: API_KEY });
-  } else {
-    console.warn("Prism: API_KEY is missing. AI features will be disabled.");
-  }
-} catch (error) {
-  console.error("Prism: Failed to initialize Gemini Client.", error);
-}
-
-// Helper: Check if API is ready
-export const isApiConfigured = (): boolean => {
-  return !!ai && API_KEY.length > 0;
+// 1. Helper to get the API key safely from environment variable
+// Guidelines: API key must be obtained exclusively from process.env.API_KEY
+const getApiKey = (): string => {
+  // @ts-ignore process might not be defined in strict browser types, but is required by guidelines
+  return process.env.API_KEY || "";
 };
 
-// Caching to prevent duplicate API calls
+// 2. Lazy initialization container
+let ai: GoogleGenAI | null = null;
+
+// 3. Client Getter - Initializes only when needed
+const getClient = (): GoogleGenAI | null => {
+  if (ai) return ai;
+
+  const key = getApiKey();
+  
+  // Log status on first attempt to initialize
+  console.log("Prism Service: Checking for key:", key ? "[FOUND]" : "[MISSING]");
+
+  if (!key) {
+    console.warn("Prism: API_KEY is missing. AI features disabled.");
+    return null;
+  }
+
+  try {
+    ai = new GoogleGenAI({ apiKey: key });
+    return ai;
+  } catch (error) {
+    console.error("Prism: Failed to initialize Gemini Client.", error);
+    return null;
+  }
+};
+
+// Helper: Check if API is ready (checks existence of key)
+export const isApiConfigured = (): boolean => {
+  return !!getApiKey();
+};
+
+// Caching
 const searchCache = new Map<string, Product[]>();
 const suggestionCache = new Map<string, string[]>();
 
@@ -31,7 +48,8 @@ const suggestionCache = new Map<string, string[]>();
  * Search Products using Gemini Grounding (Google Search)
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
-  if (!ai) return [];
+  const client = getClient();
+  if (!client) return [];
 
   const normalizedQuery = query.toLowerCase().trim();
   if (searchCache.has(normalizedQuery)) {
@@ -39,7 +57,6 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
   }
 
   // Schema definition for structured output
-  // Fix: Use Schema type instead of SchemaShared
   const productSchema: Schema = {
     type: Type.ARRAY,
     items: {
@@ -59,7 +76,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
   };
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Search for the current price of '${query}' in India.
       Find 3-4 distinct listings from major retailers like Amazon.in, Flipkart, Croma, or Reliance Digital.
@@ -81,7 +98,6 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     if (response.text) {
       const products = JSON.parse(response.text) as Product[];
       
-      // Filter out bad results (social media, zero price, etc.)
       const validProducts = products.filter(p => {
         const url = p.url?.toLowerCase() || "";
         const isSocial = url.includes('youtube') || url.includes('twitter') || url.includes('instagram') || url.includes('facebook');
@@ -104,10 +120,11 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
  * Chat with AI Assistant
  */
 export const chatWithAI = async (message: string, history: { role: string; parts: { text: string }[] }[]) => {
-  if (!ai) throw new Error("API Key not configured");
+  const client = getClient();
+  if (!client) throw new Error("API Key not configured");
 
   try {
-    const chat = ai.chats.create({
+    const chat = client.chats.create({
       model: 'gemini-3-pro-preview',
       history: history,
       config: {
@@ -127,10 +144,11 @@ export const chatWithAI = async (message: string, history: { role: string; parts
  * Analyze Product Image
  */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
-  if (!ai) return "API Key missing.";
+  const client = getClient();
+  if (!client) return "API Key missing.";
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [
@@ -157,13 +175,14 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
  * Get Search Suggestions
  */
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
-  if (!ai || query.length < 2) return [];
+  const client = getClient();
+  if (!client || query.length < 2) return [];
 
   const cacheKey = query.toLowerCase().trim();
   if (suggestionCache.has(cacheKey)) return suggestionCache.get(cacheKey)!;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await client.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.`,
       config: {
