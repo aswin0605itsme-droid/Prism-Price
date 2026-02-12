@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import PriceCard from './components/PriceCard';
 import ProductResult from './components/ProductResult';
@@ -7,11 +8,35 @@ import ImageAnalysisModal from './components/ImageAnalysisModal';
 import ComparisonSidebar from './components/ComparisonSidebar';
 import { Subscription, Product } from './types';
 import { searchProductsWithGrounding } from './services/geminiService';
-import { Sparkles, ArrowUp, ArrowDown } from 'lucide-react';
+import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
   // Currency State
   const [currency, setCurrency] = useState('INR');
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [sortOption, setSortOption] = useState<'default' | 'asc' | 'desc'>('default');
+  const [comparisonList, setComparisonList] = useState<Product[]>([]);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+
+  // Load history from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('prism_search_history');
+    if (saved) {
+      try {
+        setSearchHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history");
+      }
+    }
+  }, []);
+
+  // Save history to localStorage
+  useEffect(() => {
+    localStorage.setItem('prism_search_history', JSON.stringify(searchHistory));
+  }, [searchHistory]);
 
   // Exchange Rates (Base: INR)
   const exchangeRates: Record<string, number> = {
@@ -30,97 +55,52 @@ const App: React.FC = () => {
     JPY: '¥'
   };
 
-  // Helper to convert raw numbers
-  const convertAmount = (amount: number) => {
-    return amount * exchangeRates[currency];
-  };
-
-  // Helper to format currency
+  const convertAmount = (amount: number) => amount * exchangeRates[currency];
   const formatCurrency = (amount: number) => {
     return `${currencySymbols[currency]}${amount.toLocaleString(currency === 'INR' ? 'en-IN' : 'en-US', { maximumFractionDigits: 0 })}`;
   };
 
-  // Hardcoded Data (Updated for Indian Pricing)
-  const socialSubsRaw: Subscription[] = [
-    {
-      id: '1',
-      name: 'X Premium',
-      priceMonthly: '650', // Storing as string number for simpler parsing logic below
-      priceYearly: '6800',
-      features: ['Edit posts', 'Longer posts', 'Undo tweet', 'Blue checkmark'],
-      url: 'https://twitter.com/i/premium_sign_up',
-      iconName: 'Twitter',
-      color: 'bg-slate-500'
-    },
-    {
-      id: '2',
-      name: 'YouTube Premium',
-      priceMonthly: '129',
-      priceYearly: '1290',
-      features: ['Ad-free videos', 'Background play', 'YouTube Music', 'Downloads'],
-      url: 'https://www.youtube.com/premium',
-      iconName: 'Youtube',
-      color: 'bg-red-500'
-    },
-    {
-      id: '3',
-      name: 'LinkedIn Premium',
-      priceMonthly: '1500', 
-      priceYearly: '12000',
-      features: ['InMail credits', 'Who viewed profile', 'LinkedIn Learning', 'Applicant insights'],
-      url: 'https://www.linkedin.com/premium',
-      iconName: 'Linkedin',
-      color: 'bg-blue-600'
-    },
-     {
-      id: '4',
-      name: 'Meta Verified',
-      priceMonthly: '699',
-      priceYearly: '8388',
-      features: ['Verified Badge', 'Account Protection', 'Support Access', 'Stickers'],
-      url: 'https://about.meta.com/technologies/meta-verified/',
-      iconName: 'Facebook',
-      color: 'bg-blue-400'
-    }
+  const recommendedProducts: Product[] = [
+    { id: 'rec-1', name: 'iPhone 15 (128GB)', retailer: 'Amazon.in', price: 65999, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://m.media-amazon.com/images/I/71d7rfSl0wL._SX679_.jpg' },
+    { id: 'rec-2', name: 'Sony WH-1000XM5', retailer: 'Reliance Digital', price: 29990, currency: '₹', url: 'https://www.reliancedigital.in', inStock: true, image: 'https://m.media-amazon.com/images/I/51aXvjzcukL._SX679_.jpg' },
+    { id: 'rec-3', name: 'MacBook Air M2', retailer: 'Flipkart', price: 89900, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71f5Eu5lJSL._SX679_.jpg' },
+    { id: 'rec-4', name: 'Samsung S24 Ultra', retailer: 'Croma', price: 129999, currency: '₹', url: 'https://www.croma.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71RVuS3q9QL._SX679_.jpg' },
   ];
 
-  // Convert Subs based on selected currency
+  const socialSubsRaw: Subscription[] = [
+    { id: '1', name: 'X Premium', priceMonthly: '650', priceYearly: '6800', features: ['Edit posts', 'Blue checkmark'], url: 'https://twitter.com', iconName: 'Twitter', color: 'bg-slate-500' },
+    { id: '2', name: 'YouTube Premium', priceMonthly: '129', priceYearly: '1290', features: ['Ad-free', 'Background play'], url: 'https://www.youtube.com', iconName: 'Youtube', color: 'bg-red-500' },
+    { id: '3', name: 'LinkedIn Premium', priceMonthly: '1500', priceYearly: '12000', features: ['InMail', 'Insights'], url: 'https://www.linkedin.com', iconName: 'Linkedin', color: 'bg-blue-600' },
+    { id: '4', name: 'Meta Verified', priceMonthly: '699', priceYearly: '8388', features: ['Badge', 'Protection'], url: 'https://about.meta.com', iconName: 'Facebook', color: 'bg-blue-400' }
+  ];
+
   const socialSubs = socialSubsRaw.map(sub => ({
     ...sub,
     priceMonthly: formatCurrency(convertAmount(parseInt(sub.priceMonthly))),
     priceYearly: formatCurrency(convertAmount(parseInt(sub.priceYearly))),
   }));
 
-  // Mock Book Data (Updated for Indian Context)
-  const mockBooks: Product[] = [
-    { id: '1', name: 'Atomic Habits', retailer: 'Amazon.in', price: 551, currency: '₹', url: 'https://www.amazon.in/Atomic-Habits-James-Clear/dp/1847941834', inStock: true, image: 'https://picsum.photos/200' },
-    { id: '2', name: 'Atomic Habits', retailer: 'Flipkart', price: 499, currency: '₹', url: 'https://www.flipkart.com/atomic-habits/p/itm', inStock: true, image: 'https://picsum.photos/201' },
-    { id: '3', name: 'Atomic Habits', retailer: 'Crossword', price: 650, currency: '₹', url: 'https://www.crossword.in', inStock: false, image: 'https://picsum.photos/202' },
-    { id: '4', name: 'Atomic Habits', retailer: 'Bookswagon', price: 520, currency: '₹', url: 'https://www.bookswagon.com', inStock: true, image: 'https://picsum.photos/203' },
-  ];
-
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
-  const [sortOption, setSortOption] = useState<'default' | 'asc' | 'desc'>('default');
-  
-  // State for comparison list
-  const [comparisonList, setComparisonList] = useState<Product[]>([]);
-  const [isCompareOpen, setIsCompareOpen] = useState(false);
-
   const handleSearch = async (query: string) => {
+    if (!query.trim()) return;
     setIsSearching(true);
     setProducts([]);
-    setSortOption('default'); // Reset sort on new search
+    setSortOption('default');
 
-    // Logic: If query is 'Book', show mock data as a demo. Else, use Gemini Grounding.
+    // Update History
+    setSearchHistory(prev => {
+      const filtered = prev.filter(h => h.toLowerCase() !== query.toLowerCase());
+      return [query, ...filtered].slice(0, 6);
+    });
+
     if (query.toLowerCase().trim() === 'book') {
       setTimeout(() => {
-        setProducts(mockBooks);
+        setProducts([
+          { id: '1', name: 'Atomic Habits', retailer: 'Amazon.in', price: 551, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://picsum.photos/200' },
+          { id: '2', name: 'Atomic Habits', retailer: 'Flipkart', price: 499, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://picsum.photos/201' },
+        ]);
         setIsSearching(false);
-      }, 800); // Fake loading delay
+      }, 800);
     } else {
-      // Use Gemini for real grounding and structured data
       const results = await searchProductsWithGrounding(query);
       setProducts(results);
       setIsSearching(false);
@@ -137,38 +117,21 @@ const App: React.FC = () => {
 
   const addToCompare = (product: Product) => {
     setComparisonList(prev => {
-      // Avoid duplicates
       if (prev.some(p => p.id === product.id)) return prev;
       return [...prev, product];
     });
-    // Auto-open sidebar on first add
-    if (comparisonList.length === 0) {
-      setIsCompareOpen(true);
-    }
+    if (comparisonList.length === 0) setIsCompareOpen(true);
   };
 
-  const removeFromCompare = (productId: string) => {
-    setComparisonList(prev => prev.filter(p => p.id !== productId));
-  };
-
-  const clearComparison = () => {
-    setComparisonList([]);
-    setIsCompareOpen(false);
-  };
-
-  // Convert Products for display
   const displayProducts = getSortedProducts().map(p => ({
     ...p,
     price: convertAmount(p.price),
     currency: currencySymbols[currency]
   }));
   
-  const getCheapestProductId = () => {
-    if (displayProducts.length === 0) return null;
-    return displayProducts.reduce((prev, curr) => (prev.price < curr.price ? prev : curr)).id;
-  };
-
-  const cheapestId = getCheapestProductId();
+  const cheapestId = displayProducts.length > 0 
+    ? displayProducts.reduce((prev, curr) => (prev.price < curr.price ? prev : curr)).id 
+    : null;
 
   return (
     <div className="min-h-screen pb-20 relative">
@@ -183,13 +146,12 @@ const App: React.FC = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* Section 1: Subscription Comparison */}
+        {/* Subscriptions */}
         <div className="mb-20">
           <div className="flex items-center gap-3 mb-8">
              <h2 className="text-3xl font-bold text-white tracking-tight">Subscription Monitor</h2>
              <div className="h-px flex-1 bg-gradient-to-r from-white/20 to-transparent"></div>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {socialSubs.map(sub => (
               <PriceCard key={sub.id} sub={sub} />
@@ -197,34 +159,29 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 2: Product Search Results */}
+        {/* Product Section */}
         <div>
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div className="flex items-center gap-3">
                <h2 className="text-3xl font-bold text-white tracking-tight">Product Analysis</h2>
             </div>
-            
-            {/* Sort Controls (Only visible when products exist) */}
             {products.length > 0 && (
-              <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10 animate-in fade-in slide-in-from-right-4 duration-500">
-                <span className="text-xs text-slate-400 px-3 font-medium uppercase tracking-wider hidden sm:inline">Sort Price:</span>
+              <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10">
                 <button 
                   onClick={() => setSortOption('asc')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sortOption === 'asc' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sortOption === 'asc' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <ArrowUp className="w-3 h-3" /> Low to High
+                  <ArrowUp className="w-3 h-3 inline mr-1" /> Low to High
                 </button>
                 <button 
                   onClick={() => setSortOption('desc')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sortOption === 'desc' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${sortOption === 'desc' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <ArrowDown className="w-3 h-3" /> High to Low
+                  <ArrowDown className="w-3 h-3 inline mr-1" /> High to Low
                 </button>
               </div>
             )}
           </div>
-
-          <div className="h-px w-full bg-gradient-to-r from-white/20 to-transparent mb-8"></div>
 
           <div className="min-h-[300px]">
             {isSearching ? (
@@ -244,31 +201,74 @@ const App: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/10 rounded-2xl bg-white/5">
-                <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-6">
-                    <Sparkles className="w-8 h-8 text-slate-500" />
+              <div className="space-y-12">
+                {/* Search History Tags */}
+                {searchHistory.length > 0 && (
+                  <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <History className="w-4 h-4" /> Recent Searches
+                    </h3>
+                    <div className="flex flex-wrap gap-3">
+                      {searchHistory.map((h, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSearch(h)}
+                          className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10 hover:border-indigo-500/50 transition-all flex items-center gap-2 group"
+                        >
+                          <History className="w-3 h-3 text-slate-500 group-hover:text-indigo-400" />
+                          {h}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-indigo-400" /> Recommended For You
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {recommendedProducts.map(product => (
+                      <ProductResult 
+                        key={product.id} 
+                        product={{
+                          ...product,
+                          price: convertAmount(product.price),
+                          currency: currencySymbols[currency]
+                        }} 
+                        isCheapest={false}
+                        onAddToCompare={addToCompare}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-xl font-medium text-white mb-2">Ready to Compare</h3>
-                <p className="text-slate-400 max-w-md">
-                  Search for "Book" for a demo, or search any real product (e.g. "iPhone 15", "Nike Shoes") to see live prices and images.
-                </p>
+
+                {/* Empty State Instructions */}
+                <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-white/10 rounded-3xl bg-white/5">
+                  <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-6 relative">
+                      <Sparkles className="w-8 h-8 text-indigo-400" />
+                      <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full animate-pulse"></div>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Prism Smart Search</h3>
+                  <p className="text-slate-400 max-w-sm px-4">
+                    Type a product name above to compare prices across India's top retailers instantly.
+                  </p>
+                </div>
               </div>
             )}
           </div>
         </div>
-
       </main>
 
       <ChatWidget />
-      
       <ComparisonSidebar 
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
         items={comparisonList}
-        onRemove={removeFromCompare}
-        onClear={clearComparison}
+        onRemove={(id) => setComparisonList(prev => prev.filter(p => p.id !== id))}
+        onClear={() => { setComparisonList([]); setIsCompareOpen(false); }}
       />
-
       <ImageAnalysisModal isOpen={showAnalysisModal} onClose={() => setShowAnalysisModal(false)} />
     </div>
   );

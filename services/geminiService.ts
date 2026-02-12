@@ -1,13 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Ensure API key is available
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  console.error("API_KEY is missing from environment variables.");
-}
-
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+// Always initialize with named parameter and process.env.API_KEY directly.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 /**
  * Searches for current product prices using Google Search Grounding.
@@ -52,7 +47,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
               currency: { type: Type.STRING },
               url: { type: Type.STRING },
               inStock: { type: Type.BOOLEAN },
-              image: { type: Type.STRING, nullable: true }
+              image: { type: Type.STRING }
             },
             required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
           }
@@ -61,18 +56,25 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     });
 
     if (response.text) {
-      const products = JSON.parse(response.text) as Product[];
-      // Filter out products with 0 price, missing essential data, or blacklisted domains
-      return products.filter(p => {
-        const isValidData = p.price > 0 && p.name && p.url;
-        const urlLower = p.url.toLowerCase();
-        const isNotSocial = !urlLower.includes('youtube.com') && 
-                            !urlLower.includes('youtu.be') && 
-                            !urlLower.includes('facebook.com') && 
-                            !urlLower.includes('instagram.com') &&
-                            !urlLower.includes('linkedin.com');
-        return isValidData && isNotSocial;
-      });
+      // Guideline: When using googleSearch, the output might not strictly be JSON.
+      // We attempt to parse but must handle errors gracefully.
+      try {
+        const products = JSON.parse(response.text) as Product[];
+        // Filter out products with 0 price, missing essential data, or blacklisted domains
+        return products.filter(p => {
+          const isValidData = p.price > 0 && p.name && p.url;
+          const urlLower = p.url.toLowerCase();
+          const isNotSocial = !urlLower.includes('youtube.com') && 
+                              !urlLower.includes('youtu.be') && 
+                              !urlLower.includes('facebook.com') && 
+                              !urlLower.includes('instagram.com') &&
+                              !urlLower.includes('linkedin.com');
+          return isValidData && isNotSocial;
+        });
+      } catch (parseError) {
+        console.error("Gemini grounding response parsing error:", parseError);
+        return [];
+      }
     }
     
     return [];
