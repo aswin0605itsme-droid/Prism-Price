@@ -201,15 +201,15 @@ const Navbar: React.FC<NavbarProps> = ({
                 <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-40 animate-in fade-in slide-in-from-top-2 duration-200">
                   
                   {showSuggestions ? (
-                    <ul className="max-h-64 overflow-y-auto custom-scrollbar">
+                    <ul className="max-h-72 overflow-y-auto custom-scrollbar">
                       {filteredSuggestions.map((item, index) => (
                         <li 
                           key={index}
                           onClick={() => handleSuggestionClick(item)}
                           className="px-4 py-3 hover:bg-white/5 cursor-pointer flex items-center gap-3 transition-colors border-b border-white/5 last:border-0 group/item"
                         >
-                          <Search className="w-4 h-4 text-slate-500 group-hover/item:text-indigo-400 transition-colors" />
-                          <span className="text-sm">
+                          <Search className="w-4 h-4 text-slate-500 group-hover/item:text-indigo-400 transition-colors flex-shrink-0" />
+                          <span className="text-sm truncate flex-1">
                             {renderHighlightedText(item, inputValue)}
                           </span>
                         </li>

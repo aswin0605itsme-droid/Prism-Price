@@ -2,18 +2,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// FIX: Use process.env.API_KEY as per guidelines and to avoid ImportMeta error
+// Adhering to Google GenAI guidelines: Use process.env.API_KEY directly
 const apiKey = process.env.API_KEY;
-console.log("API Key exists:", !!apiKey);
+
+// Log error if key is missing
+if (!apiKey) {
+  console.error('API Key is missing from Environment Variables');
+}
 
 let ai: GoogleGenAI | null = null;
 
 // Safely initialize the AI client
 try {
   if (apiKey && apiKey.trim().length > 0) {
+    // Note: Using GoogleGenAI class as per @google/genai library
     ai = new GoogleGenAI({ apiKey });
   } else {
-    console.warn("Gemini API Key is missing or empty. Ensure process.env.API_KEY is set.");
+    console.warn("Gemini API Key is missing or empty. Ensure API_KEY is set in your environment.");
   }
 } catch (error) {
   console.error("Failed to initialize Gemini Client:", error);
@@ -199,7 +204,16 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate 5 short, popular shopping search terms related to "${query}". Return a JSON array of strings. Example: ["iPhone 15", "iPhone 15 case"].`,
+      contents: `Generate 10 shopping search terms related to "${query}". 
+      1. First 4 terms: Short, popular, generic product names (e.g. "${query} 5G").
+      2. Remaining 6 terms: Specific retailer queries for the exact same product, including an estimated price reference.
+      
+      Example format for retailer queries: 
+      - "${query} price on Amazon"
+      - "${query} cost at Flipkart (approx ₹Price)"
+      - "${query} deals Reliance Digital"
+      
+      Return a JSON array of strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

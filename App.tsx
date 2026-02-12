@@ -16,6 +16,10 @@ const App: React.FC = () => {
   // Debug Log
   useEffect(() => {
     console.log("App Component Mounted");
+    // Check API Key existence as requested
+    if (!process.env.API_KEY) { 
+        console.error('API Key is missing from Environment Variables'); 
+    }
   }, []);
 
   // API Config State
