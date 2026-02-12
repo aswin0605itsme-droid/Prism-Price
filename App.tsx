@@ -134,7 +134,7 @@ const App: React.FC = () => {
     : null;
 
   return (
-    <div className="min-h-screen pb-20 relative">
+    <div className="min-h-screen pb-20 relative z-10">
       <Navbar 
         onSearch={handleSearch} 
         onOpenAnalysis={() => setShowAnalysisModal(true)} 

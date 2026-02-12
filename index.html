@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -36,6 +37,11 @@
         color: #f8fafc;
         overflow-x: hidden;
       }
+      #root {
+        position: relative;
+        z-index: 1;
+        min-height: 100vh;
+      }
       .mesh-gradient {
         position: fixed;
         top: 0;
@@ -69,6 +75,7 @@
   "imports": {
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.4/client",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
     "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
