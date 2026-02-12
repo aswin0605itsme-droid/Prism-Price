@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import GlassCard from './GlassCard';
-import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn } from 'lucide-react';
+import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn, AlertCircle } from 'lucide-react';
 
 interface ProductResultProps {
   product: Product;
@@ -23,6 +23,7 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
   };
 
   const handleAddToCart = () => {
+    if (!product.inStock) return;
     setIsCartAdded(true);
     // Placeholder for actual cart logic
     console.log(`Added to cart: ${product.name} at ${product.retailer}`);
@@ -55,12 +56,13 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
           {/* Image Container */}
           <button 
             onClick={() => product.image && !imageError && setIsPreviewOpen(true)}
+            disabled={!product.image || imageError}
             className={`
               relative w-24 h-24 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden 
-              border border-white/10 group-hover:border-indigo-500/30 transition-all duration-500
-              ${product.image && !imageError ? 'bg-white cursor-zoom-in' : 'bg-white/5 cursor-default'}
+              border border-white/10 transition-all duration-500
+              ${product.image && !imageError ? 'bg-white cursor-zoom-in group-hover:border-indigo-500/30' : 'bg-white/5 cursor-not-allowed'}
             `}
-            title={product.image && !imageError ? "View larger image" : ""}
+            title={product.image && !imageError ? "View larger image" : "Image unavailable"}
           >
               {product.image && !imageError ? (
                   <>
@@ -75,8 +77,18 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
                     </div>
                   </>
               ) : (
-                  <div className="flex flex-col items-center justify-center w-full h-full bg-slate-900/50 backdrop-blur-sm">
-                     <ImageOff className="w-8 h-8 text-slate-600 group-hover:text-indigo-400 transition-colors duration-300" />
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-slate-900/50 backdrop-blur-sm p-1 text-center">
+                     {imageError ? (
+                       <>
+                         <AlertCircle className="w-6 h-6 text-amber-500/70 mb-1" />
+                         <span className="text-[9px] text-amber-500/60 font-medium leading-tight">Image<br/>Error</span>
+                       </>
+                     ) : (
+                       <>
+                         <ImageOff className="w-6 h-6 text-slate-600 mb-1" />
+                         <span className="text-[9px] text-slate-600 font-medium leading-tight">No<br/>Preview</span>
+                       </>
+                     )}
                   </div>
               )}
           </button>
@@ -123,35 +135,46 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
 
               <button
                 onClick={handleAddToCart}
-                disabled={isCartAdded}
+                disabled={isCartAdded || !product.inStock}
                 className={`
-                  p-2 rounded-xl border transition-all duration-300 hover:scale-105 active:scale-95 group/cart
-                  ${isCartAdded 
-                    ? 'bg-green-500/20 border-green-500/50 text-green-400' 
-                    : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-400 hover:text-green-400'
+                  p-2 rounded-xl border transition-all duration-300 
+                  ${!product.inStock 
+                    ? 'bg-white/5 border-white/5 text-slate-600 opacity-50 cursor-not-allowed' 
+                    : isCartAdded 
+                      ? 'bg-green-500/20 border-green-500/50 text-green-400 hover:scale-105 active:scale-95' 
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-400 hover:text-green-400 hover:scale-105 active:scale-95 group/cart'
                   }
                 `}
-                title="Add to Cart"
+                title={product.inStock ? "Add to Cart" : "Out of Stock"}
               >
                 {isCartAdded ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          <a 
-            href={product.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`
-              w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-300 group/btn
-              ${isCheapest 
-                ? 'bg-green-500 text-white hover:bg-green-400 shadow-[0_4px_20px_rgba(34,197,94,0.3)]' 
-                : 'bg-white/10 text-white hover:bg-indigo-600 shadow-lg shadow-black/20'}
-            `}
-          >
-            {isCheapest ? 'Buy from ' + product.retailer : 'View on Store'}
-            <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-          </a>
+          {product.inStock ? (
+            <a 
+              href={product.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`
+                w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-300 group/btn
+                ${isCheapest 
+                  ? 'bg-green-500 text-white hover:bg-green-400 shadow-[0_4px_20px_rgba(34,197,94,0.3)]' 
+                  : 'bg-white/10 text-white hover:bg-indigo-600 shadow-lg shadow-black/20'}
+              `}
+            >
+              {isCheapest ? 'Buy from ' + product.retailer : 'View on Store'}
+              <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+            </a>
+          ) : (
+            <button 
+              disabled
+              className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold bg-white/5 text-slate-500 cursor-not-allowed border border-white/5"
+            >
+              Currently Unavailable
+            </button>
+          )}
         </div>
         
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
