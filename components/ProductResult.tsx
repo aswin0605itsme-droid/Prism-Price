@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import GlassCard from './GlassCard';
-import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn, AlertCircle } from 'lucide-react';
+import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn, AlertCircle, Eye } from 'lucide-react';
 
 interface ProductResultProps {
   product: Product;
@@ -15,6 +15,7 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
   const [isCompareAdded, setIsCompareAdded] = useState(false);
   const [isCartAdded, setIsCartAdded] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   const handleCompare = () => {
     onAddToCompare(product);
@@ -119,6 +120,14 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
             
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setIsQuickViewOpen(true)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-indigo-300 transition-all duration-300 hover:scale-105 active:scale-95 group/view"
+                title="Quick View"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+
+              <button
                 onClick={handleCompare}
                 disabled={isCompareAdded}
                 className={`
@@ -180,7 +189,101 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </GlassCard>
 
-      {/* Image Preview Modal */}
+      {/* Quick View Modal */}
+      {isQuickViewOpen && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
+          onClick={() => setIsQuickViewOpen(false)}
+        >
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()}>
+             <GlassCard className="!p-0 overflow-hidden shadow-2xl border-white/20">
+                <button 
+                  onClick={() => setIsQuickViewOpen(false)}
+                  className="absolute top-4 right-4 p-2 bg-black/10 hover:bg-black/30 rounded-full text-slate-600 hover:text-white transition-colors z-20"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                  {/* Image Section */}
+                  <div className="bg-white p-8 flex items-center justify-center min-h-[300px] md:min-h-[400px]">
+                     {product.image && !imageError ? (
+                        <img 
+                          src={product.image} 
+                          alt={product.name} 
+                          className="w-full h-full object-contain max-h-[350px]"
+                        />
+                     ) : (
+                        <div className="flex flex-col items-center justify-center text-slate-400">
+                           <ImageOff className="w-16 h-16 mb-2 opacity-50" />
+                           <span className="text-sm">Image Unavailable</span>
+                        </div>
+                     )}
+                  </div>
+                  
+                  {/* Details Section */}
+                  <div className="p-8 flex flex-col bg-slate-950/50">
+                     <div className="mb-6">
+                        <div className="flex items-center gap-2 text-indigo-400 text-sm font-medium mb-3">
+                           <Tag className="w-4 h-4" />
+                           {product.retailer}
+                        </div>
+                        <h2 className="text-2xl font-bold text-white leading-tight mb-4">
+                           {product.name}
+                        </h2>
+                        {isCheapest && (
+                           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider border border-green-500/30">
+                              <TrendingDown className="w-3 h-3" /> Best Deal
+                           </div>
+                        )}
+                     </div>
+                     
+                     <div className="mb-8 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <div className="text-sm text-slate-400 mb-1">Current Price</div>
+                        <div className="flex items-baseline gap-2">
+                           <span className="text-4xl font-bold text-white">
+                              {product.currency}{product.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                           </span>
+                        </div>
+                        <div className={`mt-2 text-sm font-medium ${product.inStock ? 'text-green-400' : 'text-red-400'}`}>
+                           {product.inStock ? 'In Stock & Ready to Ship' : 'Currently Out of Stock'}
+                        </div>
+                     </div>
+
+                     <div className="mt-auto space-y-3">
+                        {product.inStock ? (
+                           <a href={product.url} target="_blank" rel="noopener noreferrer" 
+                              className="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all group/modal-btn">
+                              View on {product.retailer}
+                              <ArrowRight className="w-5 h-5 group-hover/modal-btn:translate-x-1 transition-transform" />
+                           </a>
+                        ) : (
+                           <button disabled className="w-full py-4 rounded-xl bg-white/5 text-slate-500 font-medium cursor-not-allowed border border-white/10">
+                              Unavailable
+                           </button>
+                        )}
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                           <button onClick={handleCompare} disabled={isCompareAdded} 
+                              className={`py-3 rounded-xl border font-medium flex items-center justify-center gap-2 transition-all ${isCompareAdded ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'}`}>
+                              {isCompareAdded ? <Check className="w-4 h-4" /> : <Scale className="w-4 h-4" />}
+                              {isCompareAdded ? 'Added' : 'Compare'}
+                           </button>
+                           <button onClick={handleAddToCart} disabled={isCartAdded || !product.inStock}
+                               className={`py-3 rounded-xl border font-medium flex items-center justify-center gap-2 transition-all ${!product.inStock ? 'opacity-50 cursor-not-allowed bg-white/5 border-white/5' : isCartAdded ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'}`}>
+                               {isCartAdded ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+                               {isCartAdded ? 'Added' : 'Cart'}
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+             </GlassCard>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal (Keep existing logic if preferred, or rely on quick view. I will keep it for image click) */}
       {isPreviewOpen && product.image && (
         <div 
           className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
