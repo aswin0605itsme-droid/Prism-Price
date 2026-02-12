@@ -1,7 +1,6 @@
 import React from 'react';
-import { X, Trash2, ExternalLink, ArrowRight, Scale, TrendingDown, ImageOff } from 'lucide-react';
+import { X, Trash2, ExternalLink, Scale, TrendingDown, ImageOff } from 'lucide-react';
 import { Product } from '../types';
-import GlassCard from './GlassCard';
 
 interface ComparisonSidebarProps {
   isOpen: boolean;

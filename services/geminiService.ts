@@ -1,8 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-// We assume it is pre-configured and accessible in the execution context.
+// Client Getter - Initializes only when needed
+const getClient = (): GoogleGenAI | null => {
+  // Guidelines: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.log("Prism: Waiting for API Key...");
+    return null;
+  }
+
+  try {
+    // Guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+    return new GoogleGenAI({ apiKey });
+  } catch (error) {
+    console.error("Prism: Failed to initialize Gemini Client.", error);
+    return null;
+  }
+};
+
+// Helper: Check if API is ready (checks existence of key)
 export const isApiConfigured = (): boolean => {
   return !!process.env.API_KEY;
 };
@@ -15,7 +33,8 @@ const suggestionCache = new Map<string, string[]>();
  * Search Products using Gemini Grounding (Google Search)
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
-  if (!process.env.API_KEY) return [];
+  const ai = getClient();
+  if (!ai) return [];
 
   const normalizedQuery = query.toLowerCase().trim();
   if (searchCache.has(normalizedQuery)) {
@@ -23,12 +42,31 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const productSchema = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          name: { type: Type.STRING },
+          retailer: { type: Type.STRING },
+          price: { type: Type.NUMBER },
+          currency: { type: Type.STRING },
+          url: { type: Type.STRING },
+          inStock: { type: Type.BOOLEAN },
+          image: { type: Type.STRING }
+        },
+        required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
+      }
+    };
 
-    // Using gemini-3-flash-preview for efficiency and JSON capability
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Search for the current price of '${query}' in India.
+      contents: [
+        {
+          role: 'user',
+          parts: [{
+            text: `Search for the current price of '${query}' in India.
             Find 3-4 distinct listings from major retailers like Amazon.in, Flipkart, Croma, or Reliance Digital.
             
             RULES:
@@ -36,27 +74,14 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
             - EXCLUDE news articles or blogs.
             - MUST return valid JSON matching the schema.
             - For 'image', try to find a direct URL to the product image on the retailer's site.
-            - If price is not found, set it to 0.`,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              name: { type: Type.STRING },
-              retailer: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              currency: { type: Type.STRING },
-              url: { type: Type.STRING },
-              inStock: { type: Type.BOOLEAN },
-              image: { type: Type.STRING }
-            },
-            required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
-          }
+            - If price is not found, set it to 0.`
+          }]
         }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: productSchema,
+        tools: [{ googleSearch: {} }],
       }
     });
 
@@ -87,21 +112,20 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
  * Chat with AI Assistant
  */
 export const chatWithAI = async (message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[]) => {
-  if (!process.env.API_KEY) throw new Error("API Key not configured");
+  const ai = getClient();
+  if (!ai) return "I'm offline right now. Please check your API key.";
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
+      history: history as any,
       config: {
         systemInstruction: "You are Prism, a helpful Indian shopping assistant. Help users compare prices in INR. Be concise."
-      },
-      history: history as any
+      }
     });
 
-    const result = await chat.sendMessage({ message });
-    return result.text || "I'm having trouble connecting right now.";
+    const response = await chat.sendMessage({ message });
+    return response.text || "I'm having trouble connecting right now.";
   } catch (error) {
     console.error("Prism: Chat Error", error);
     return "Sorry, I encountered an error.";
@@ -112,11 +136,10 @@ export const chatWithAI = async (message: string, history: { role: 'user' | 'mod
  * Analyze Product Image
  */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
-  if (!process.env.API_KEY) return "API Key missing.";
+  const ai = getClient();
+  if (!ai) return "API Key missing.";
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -130,8 +153,8 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
           {
             text: "Analyze this image. Identify the product and any visible price tag. Convert price to INR if needed. Keep it short.",
           },
-        ],
-      },
+        ]
+      }
     });
     return response.text || "Could not analyze image.";
   } catch (error) {
@@ -144,17 +167,19 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
  * Get Search Suggestions
  */
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
-  if (!process.env.API_KEY || query.length < 2) return [];
+  const ai = getClient();
+  if (!ai || query.length < 2) return [];
 
   const cacheKey = query.toLowerCase().trim();
   if (suggestionCache.has(cacheKey)) return suggestionCache.get(cacheKey)!;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.`,
+      contents: {
+        role: 'user',
+        parts: [{ text: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.` }]
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
