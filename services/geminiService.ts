@@ -2,12 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Note: Using process.env.API_KEY as per coding guidelines.
-const apiKey = process.env.API_KEY;
+// FIX: Use import.meta.env.VITE_GEMINI_API_KEY for Vite client-side usage
+// Using (import.meta as any) to avoid TypeScript errors if env types are missing
+const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
 
 // Log error if key is missing
 if (!apiKey) {
-  console.error('API Key is missing from Environment Variables (API_KEY)');
+  console.error('API Key is missing from Environment Variables (VITE_GEMINI_API_KEY)');
 }
 
 let ai: GoogleGenAI | null = null;
@@ -16,9 +17,9 @@ let ai: GoogleGenAI | null = null;
 try {
   if (apiKey && apiKey.trim().length > 0) {
     // Note: Using GoogleGenAI class as per @google/genai library
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    ai = new GoogleGenAI({ apiKey });
   } else {
-    console.warn("Gemini API Key is missing or empty. Ensure API_KEY is set in your environment variables.");
+    console.warn("Gemini API Key is missing or empty. Ensure VITE_GEMINI_API_KEY is set in your environment variables.");
   }
 } catch (error) {
   console.error("Failed to initialize Gemini Client:", error);

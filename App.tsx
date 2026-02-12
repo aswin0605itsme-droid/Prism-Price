@@ -15,15 +15,24 @@ import GlassCard from './components/GlassCard';
 const App: React.FC = () => {
   // Debug Log
   useEffect(() => {
-    console.log("App Component Mounted");
-    // Debug: Check Environment Mode if available
-    if (process.env.NODE_ENV) {
-      console.log('Environment Mode:', process.env.NODE_ENV);
+    // --- VITE DEBUG START ---
+    // Using (import.meta as any) to avoid TypeScript errors if types aren't explicitly defined
+    const env = (import.meta as any).env;
+    
+    console.log('--- VITE DEBUG ---');
+    console.log('VITE_GEMINI_API_KEY exists:', !!env?.VITE_GEMINI_API_KEY);
+    try {
+        console.log('All VITE keys:', Object.keys(env || {}).filter((k: string) => k.startsWith('VITE_')));
+    } catch (e) {
+        console.log('Error listing keys:', e);
     }
+    // --- VITE DEBUG END ---
 
-    // Check API Key existence from process.env
-    if (!process.env.API_KEY) { 
-        console.error('API Key is missing from Environment Variables'); 
+    console.log("App Component Mounted");
+
+    // Check API Key existence for UI feedback
+    if (!env?.VITE_GEMINI_API_KEY) { 
+        console.error('API Key is missing from Environment Variables (VITE_GEMINI_API_KEY)'); 
     }
   }, []);
 
@@ -184,7 +193,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-bold text-white">API Key Missing</h3>
-                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables (API_KEY) to enable AI features.</p>
+                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables (VITE_GEMINI_API_KEY) to enable AI features.</p>
                     </div>
                 </div>
             </GlassCard>
