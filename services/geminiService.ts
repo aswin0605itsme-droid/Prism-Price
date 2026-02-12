@@ -1,172 +1,133 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Product } from "../types";
 
-// FIX: Use import.meta.env.VITE_GEMINI_API_KEY for Vite client-side usage
-// Using (import.meta as any) to avoid TypeScript errors if env types are missing
-const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-
-// Log error if key is missing
-if (!apiKey) {
-  console.error('API Key is missing from Environment Variables (VITE_GEMINI_API_KEY)');
-}
+// Fix: Use process.env.API_KEY as per guidelines and to fix ImportMeta error
+const API_KEY = process.env.API_KEY || "";
 
 let ai: GoogleGenAI | null = null;
 
-// Safely initialize the AI client
+// 2. Initialize the Gemini Client
 try {
-  if (apiKey && apiKey.trim().length > 0) {
-    // Note: Using GoogleGenAI class as per @google/genai library
-    ai = new GoogleGenAI({ apiKey });
+  if (API_KEY && API_KEY.length > 0) {
+    ai = new GoogleGenAI({ apiKey: API_KEY });
   } else {
-    console.warn("Gemini API Key is missing or empty. Ensure VITE_GEMINI_API_KEY is set in your environment variables.");
+    console.warn("Prism: API_KEY is missing. AI features will be disabled.");
   }
 } catch (error) {
-  console.error("Failed to initialize Gemini Client:", error);
+  console.error("Prism: Failed to initialize Gemini Client.", error);
 }
 
-// Helper to check configuration status
-export const isApiConfigured = () => !!ai;
+// Helper: Check if API is ready
+export const isApiConfigured = (): boolean => {
+  return !!ai && API_KEY.length > 0;
+};
 
-// Simple in-memory cache to speed up repeated searches
+// Caching to prevent duplicate API calls
 const searchCache = new Map<string, Product[]>();
 const suggestionCache = new Map<string, string[]>();
 
 /**
- * Searches for current product prices using Google Search Grounding.
- * Uses gemini-3-flash-preview for speed and efficiency.
- * Returns a list of structured Product objects.
+ * Search Products using Gemini Grounding (Google Search)
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
-  if (!ai) {
-    alert("API Key is missing. Please check your configuration.");
-    console.warn("API not configured, skipping search.");
-    return [];
-  }
+  if (!ai) return [];
 
-  // Check cache first
   const normalizedQuery = query.toLowerCase().trim();
   if (searchCache.has(normalizedQuery)) {
-    console.log("Using cached results for:", normalizedQuery);
     return searchCache.get(normalizedQuery)!;
   }
+
+  // Schema definition for structured output
+  // Fix: Use Schema type instead of SchemaShared
+  const productSchema: Schema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        id: { type: Type.STRING },
+        name: { type: Type.STRING },
+        retailer: { type: Type.STRING },
+        price: { type: Type.NUMBER },
+        currency: { type: Type.STRING },
+        url: { type: Type.STRING },
+        inStock: { type: Type.BOOLEAN },
+        image: { type: Type.STRING }
+      },
+      required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
+    }
+  };
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Find the current price of '${query}' in India at 3-4 major online retailers (like Amazon.in, Flipkart, Croma, Reliance Digital). 
+      contents: `Search for the current price of '${query}' in India.
+      Find 3-4 distinct listings from major retailers like Amazon.in, Flipkart, Croma, or Reliance Digital.
       
-      CRITICAL INSTRUCTIONS:
-      1. STRICTLY EXCLUDE social media links.
-      2. ONLY return direct e-commerce product page links.
-      3. IMAGE ACCURACY IS PARAMOUNT:
-         - You MUST find a direct URL to the *specific* product image for '${query}'.
-         - Do NOT use images of related products, sponsored ads, or accessories (e.g. if searching for headphones/buds, DO NOT show a watch).
-         - Verify the image URL is likely to contain the product.
-      
-      Return a JSON array of objects. Each object must have:
-      - id: string
-      - name: string
-      - retailer: string
-      - price: number (INR)
-      - currency: string (₹)
-      - url: string
-      - inStock: boolean
-      - image: string (or null)`,
+      RULES:
+      - EXCLUDE social media (Youtube, Facebook, etc).
+      - EXCLUDE news articles or blogs.
+      - MUST return valid JSON matching the schema.
+      - For 'image', try to find a direct URL to the product image on the retailer's site.
+      - If price is not found, set it to 0.
+      `,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              name: { type: Type.STRING },
-              retailer: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              currency: { type: Type.STRING },
-              url: { type: Type.STRING },
-              inStock: { type: Type.BOOLEAN },
-              image: { type: Type.STRING }
-            },
-            required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
-          }
-        }
+        responseSchema: productSchema,
       },
     });
 
     if (response.text) {
-      try {
-        const products = JSON.parse(response.text) as Product[];
-        const filtered = products.filter(p => {
-          const isValidData = p.price > 0 && p.name && p.url;
-          const urlLower = p.url ? p.url.toLowerCase() : '';
-          const isNotSocial = !urlLower.includes('youtube.com') && 
-                              !urlLower.includes('youtu.be') && 
-                              !urlLower.includes('facebook.com') && 
-                              !urlLower.includes('instagram.com') && 
-                              !urlLower.includes('linkedin.com');
-          return isValidData && isNotSocial;
-        });
+      const products = JSON.parse(response.text) as Product[];
+      
+      // Filter out bad results (social media, zero price, etc.)
+      const validProducts = products.filter(p => {
+        const url = p.url?.toLowerCase() || "";
+        const isSocial = url.includes('youtube') || url.includes('twitter') || url.includes('instagram') || url.includes('facebook');
+        return p.price > 0 && p.name && !isSocial;
+      });
 
-        // Store in cache
-        if (filtered.length > 0) {
-            searchCache.set(normalizedQuery, filtered);
-        }
-        
-        return filtered;
-      } catch (parseError) {
-        console.error("Gemini grounding response parsing error:", parseError);
-        return [];
+      if (validProducts.length > 0) {
+        searchCache.set(normalizedQuery, validProducts);
       }
+      return validProducts;
     }
-    
-    return [];
-  } catch (error: any) {
-    console.error("Gemini Search Error:", error);
-    alert(`Search failed: ${error.message || "Unknown error occurred"}`);
-    return [];
+  } catch (error) {
+    console.error("Prism: Search Error", error);
   }
+
+  return [];
 };
 
 /**
- * Chats with the AI assistant.
- * Uses gemini-3-pro-preview for complex reasoning.
+ * Chat with AI Assistant
  */
 export const chatWithAI = async (message: string, history: { role: string; parts: { text: string }[] }[]) => {
-  if (!ai) {
-    alert("API Key missing.");
-    return "I cannot reply right now because my API key is missing.";
-  }
+  if (!ai) throw new Error("API Key not configured");
 
   try {
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
       history: history,
       config: {
-        systemInstruction: "You are a helpful shopping assistant named Prism AI for the Indian market. You help users compare prices in INR (₹) and find deals on sites like Amazon.in and Flipkart. Keep answers short and friendly.",
+        systemInstruction: "You are Prism, a helpful Indian shopping assistant. Help users compare prices in INR. Be concise.",
       },
     });
 
     const response = await chat.sendMessage({ message });
-    return response.text || "I'm thinking...";
-  } catch (error: any) {
-    console.error("Gemini Chat Error:", error);
-    alert(`Chat Error: ${error.message}`);
-    return "I encountered an error connecting to the server.";
+    return response.text || "I'm having trouble connecting right now.";
+  } catch (error) {
+    console.error("Prism: Chat Error", error);
+    return "Sorry, I encountered an error.";
   }
 };
 
 /**
- * Analyzes an image to detect products and prices.
- * Uses gemini-3-pro-preview for multimodal capabilities.
+ * Analyze Product Image
  */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
-  if (!ai) {
-    alert("API Key missing.");
-    return "API Key missing.";
-  }
+  if (!ai) return "API Key missing.";
 
   try {
     const response = await ai.models.generateContent({
@@ -180,44 +141,31 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
             },
           },
           {
-            text: "Analyze this image. If it's a product, identify it and any visible price tag (convert to INR if possible or state the currency). If it's a receipt, summarize the total. Format your response clearly.",
+            text: "Analyze this image. Identify the product and any visible price tag. Convert price to INR if needed. Keep it short.",
           },
         ],
       },
     });
-    return response.text || "Could not analyze the image.";
-  } catch (error: any) {
-    console.error("Gemini Vision Error:", error);
-    alert(`Image Analysis Error: ${error.message}`);
-    return "Error analyzing image.";
+    return response.text || "Could not analyze image.";
+  } catch (error) {
+    console.error("Prism: Vision Error", error);
+    return "Error processing image.";
   }
 };
 
 /**
- * Gets dynamic search suggestions based on input.
+ * Get Search Suggestions
  */
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
-  if (!ai) return [];
-  if (!query || query.length < 2) return [];
-  
+  if (!ai || query.length < 2) return [];
+
   const cacheKey = query.toLowerCase().trim();
-  if (suggestionCache.has(cacheKey)) {
-    return suggestionCache.get(cacheKey)!;
-  }
+  if (suggestionCache.has(cacheKey)) return suggestionCache.get(cacheKey)!;
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate 10 shopping search terms related to "${query}". 
-      1. First 4 terms: Short, popular, generic product names (e.g. "${query} 5G").
-      2. Remaining 6 terms: Specific retailer queries for the exact same product, including an estimated price reference.
-      
-      Example format for retailer queries: 
-      - "${query} price on Amazon"
-      - "${query} cost at Flipkart (approx ₹Price)"
-      - "${query} deals Reliance Digital"
-      
-      Return a JSON array of strings.`,
+      contents: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -229,15 +177,11 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 
     if (response.text) {
       const suggestions = JSON.parse(response.text) as string[];
-      if (suggestions.length > 0) {
-        suggestionCache.set(cacheKey, suggestions);
-      }
+      suggestionCache.set(cacheKey, suggestions);
       return suggestions;
     }
-    return [];
   } catch (error) {
-    // We do not alert on suggestion errors to avoid spamming the user while typing
-    console.error("Suggestion Error (Silent):", error);
-    return [];
+    // Silent fail for suggestions
   }
+  return [];
 };

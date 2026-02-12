@@ -13,35 +13,18 @@ import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, AlertTriangle } from
 import GlassCard from './components/GlassCard';
 
 const App: React.FC = () => {
-  // Debug Log
-  useEffect(() => {
-    // --- VITE DEBUG START ---
-    // Using (import.meta as any) to avoid TypeScript errors if types aren't explicitly defined
-    const env = (import.meta as any).env;
-    
-    console.log('--- VITE DEBUG ---');
-    console.log('VITE_GEMINI_API_KEY exists:', !!env?.VITE_GEMINI_API_KEY);
-    try {
-        console.log('All VITE keys:', Object.keys(env || {}).filter((k: string) => k.startsWith('VITE_')));
-    } catch (e) {
-        console.log('Error listing keys:', e);
-    }
-    // --- VITE DEBUG END ---
-
-    console.log("App Component Mounted");
-
-    // Check API Key existence for UI feedback
-    if (!env?.VITE_GEMINI_API_KEY) { 
-        console.error('API Key is missing from Environment Variables (VITE_GEMINI_API_KEY)'); 
-    }
-  }, []);
-
   // API Config State
   const [isConfigured, setIsConfigured] = useState(true);
 
   // Check API Configuration on mount
   useEffect(() => {
-    setIsConfigured(isApiConfigured());
+    // Check if the service was able to initialize with the key
+    const configured = isApiConfigured();
+    setIsConfigured(configured);
+    
+    if (!configured) {
+        console.warn("App: Gemini API Key is missing. Please check your Vercel Environment Variables.");
+    }
   }, []);
 
   // Currency State
@@ -193,7 +176,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-bold text-white">API Key Missing</h3>
-                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the environment variables (VITE_GEMINI_API_KEY) to enable AI features.</p>
+                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the Vercel Environment Variables (VITE_GEMINI_API_KEY).</p>
                     </div>
                 </div>
             </GlassCard>
