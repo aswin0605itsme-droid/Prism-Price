@@ -68,10 +68,10 @@ const App: React.FC = () => {
   };
 
   const recommendedProducts: Product[] = [
-    { id: 'rec-1', name: 'iPhone 15 (128GB)', retailer: 'Amazon.in', price: 65999, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://m.media-amazon.com/images/I/71d7rfSl0wL._SX679_.jpg' },
-    { id: 'rec-2', name: 'Samsung Galaxy Buds2 Pro', retailer: 'Samsung Shop', price: 9999, currency: '₹', url: 'https://www.samsung.com/in/audio-sound/galaxy-buds/galaxy-buds2-pro-graphite-sm-r510nzaainu/', inStock: true, image: 'https://images.samsung.com/is/image/samsung/p6pim/in/sm-r510nzaainu/gallery/in-galaxy-buds2-pro-r510-sm-r510nzaainu-533190470?$650_519_PNG$' },
-    { id: 'rec-3', name: 'MacBook Air M2', retailer: 'Flipkart', price: 89900, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71f5Eu5lJSL._SX679_.jpg' },
-    { id: 'rec-4', name: 'Samsung S24 Ultra', retailer: 'Croma', price: 129999, currency: '₹', url: 'https://www.croma.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71RVuS3q9QL._SX679_.jpg' },
+    { id: 'rec-1', name: 'iPhone 15 (128GB)', retailer: 'Amazon.in', price: 65999, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://m.media-amazon.com/images/I/71d7rfSl0wL._SX679_.jpg', rating: 4.6, reviewCount: 2450 },
+    { id: 'rec-2', name: 'Samsung Galaxy Buds2 Pro', retailer: 'Samsung Shop', price: 9999, currency: '₹', url: 'https://www.samsung.com/in/audio-sound/galaxy-buds/galaxy-buds2-pro-graphite-sm-r510nzaainu/', inStock: true, image: 'https://images.samsung.com/is/image/samsung/p6pim/in/sm-r510nzaainu/gallery/in-galaxy-buds2-pro-r510-sm-r510nzaainu-533190470?$650_519_PNG$', rating: 4.4, reviewCount: 890 },
+    { id: 'rec-3', name: 'MacBook Air M2', retailer: 'Flipkart', price: 89900, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71f5Eu5lJSL._SX679_.jpg', rating: 4.8, reviewCount: 1205 },
+    { id: 'rec-4', name: 'Samsung S24 Ultra', retailer: 'Croma', price: 129999, currency: '₹', url: 'https://www.croma.com', inStock: true, image: 'https://m.media-amazon.com/images/I/71RVuS3q9QL._SX679_.jpg', rating: 4.9, reviewCount: 3400 },
   ];
 
   const socialSubsRaw: Subscription[] = [
@@ -107,8 +107,8 @@ const App: React.FC = () => {
     if (query.toLowerCase().trim() === 'book') {
       setTimeout(() => {
         setProducts([
-          { id: '1', name: 'Atomic Habits', retailer: 'Amazon.in', price: 551, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://picsum.photos/200' },
-          { id: '2', name: 'Atomic Habits', retailer: 'Flipkart', price: 499, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://picsum.photos/201' },
+          { id: '1', name: 'Atomic Habits', retailer: 'Amazon.in', price: 551, currency: '₹', url: 'https://www.amazon.in', inStock: true, image: 'https://picsum.photos/200', rating: 4.8, reviewCount: 50000 },
+          { id: '2', name: 'Atomic Habits', retailer: 'Flipkart', price: 499, currency: '₹', url: 'https://www.flipkart.com', inStock: true, image: 'https://picsum.photos/201', rating: 4.7, reviewCount: 12000 },
         ]);
         setIsSearching(false);
       }, 800);

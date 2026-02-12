@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import GlassCard from './GlassCard';
-import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn, AlertCircle, Eye } from 'lucide-react';
+import { ShoppingCart, ArrowRight, TrendingDown, Tag, ImageOff, Scale, Check, X, ZoomIn, AlertCircle, Eye, Star } from 'lucide-react';
 
 interface ProductResultProps {
   product: Product;
@@ -28,6 +28,37 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
     // Placeholder for actual cart logic
     console.log(`Added to cart: ${product.name} at ${product.retailer}`);
     setTimeout(() => setIsCartAdded(false), 2000);
+  };
+
+  const renderRating = () => {
+    if (product.rating) {
+      return (
+        <div className="flex items-center gap-1.5 mt-2">
+           <div className="flex items-center gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star 
+                  key={i} 
+                  className={`w-3 h-3 ${i < Math.round(product.rating!) ? 'fill-amber-400 text-amber-400' : 'fill-slate-700 text-slate-700'}`} 
+                />
+              ))}
+           </div>
+           <span className="text-xs text-slate-400 font-medium">
+             {product.rating} <span className="text-slate-600 mx-1">•</span> {product.reviewCount ? `${product.reviewCount.toLocaleString()} reviews` : ''}
+           </span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-0.5 opacity-30">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-3 h-3 text-slate-500" />
+              ))}
+           </div>
+           <span className="text-xs text-slate-600 italic">No ratings available</span>
+        </div>
+      );
+    }
   };
 
   return (
@@ -98,10 +129,14 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
             <h3 className="text-lg font-bold text-white leading-tight mb-1.5 group-hover:text-indigo-300 transition-colors duration-300 line-clamp-2">
               {product.name}
             </h3>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Tag className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{product.retailer}</span>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+              <div className="flex items-center gap-1.5">
+                  <Tag className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{product.retailer}</span>
+              </div>
             </div>
+            
+            {renderRating()}
           </div>
         </div>
 
@@ -230,8 +265,9 @@ const ProductResult: React.FC<ProductResultProps> = ({ product, isCheapest, onAd
                         <h2 className="text-2xl font-bold text-white leading-tight mb-4">
                            {product.name}
                         </h2>
+                        {renderRating()}
                         {isCheapest && (
-                           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider border border-green-500/30">
+                           <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold uppercase tracking-wider border border-green-500/30">
                               <TrendingDown className="w-3 h-3" /> Best Deal
                            </div>
                         )}

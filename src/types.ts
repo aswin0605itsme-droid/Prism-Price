@@ -18,6 +18,8 @@ export interface Product {
   url: string;
   inStock: boolean;
   image?: string;
+  rating?: number;
+  reviewCount?: number;
 }
 
 export interface ChatMessage {

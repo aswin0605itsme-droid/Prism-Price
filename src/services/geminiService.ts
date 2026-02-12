@@ -3,7 +3,7 @@ import { Product } from "../types";
 
 // Client Getter - Initializes only when needed
 const getClient = (): GoogleGenAI | null => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   
   if (!apiKey) {
     console.log("Prism: Waiting for API Key...");
@@ -19,7 +19,7 @@ const getClient = (): GoogleGenAI | null => {
 };
 
 export const isApiConfigured = (): boolean => {
-  return !!process.env.API_KEY;
+  return !!import.meta.env.VITE_GEMINI_API_KEY;
 };
 
 // Caching
@@ -48,7 +48,9 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
           currency: { type: Type.STRING },
           url: { type: Type.STRING },
           inStock: { type: Type.BOOLEAN },
-          image: { type: Type.STRING }
+          image: { type: Type.STRING },
+          rating: { type: Type.NUMBER, description: "Average product rating (0-5 stars)" },
+          reviewCount: { type: Type.NUMBER, description: "Total number of user reviews" }
         },
         required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
       }
@@ -68,6 +70,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
             - EXCLUDE news articles or blogs.
             - MUST return valid JSON matching the schema.
             - For 'image', try to find a direct URL to the product image on the retailer's site.
+            - Try to extract 'rating' and 'reviewCount' if available on the page.
             - If price is not found, set it to 0.`
           }]
         }
