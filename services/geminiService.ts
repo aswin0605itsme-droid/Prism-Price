@@ -1,8 +1,12 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
 // Always initialize with named parameter and process.env.API_KEY directly.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+
+// Simple in-memory cache to speed up repeated searches
+const searchCache = new Map<string, Product[]>();
 
 /**
  * Searches for current product prices using Google Search Grounding.
@@ -10,28 +14,32 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
  * Returns a list of structured Product objects.
  */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
+  // Check cache first
+  const normalizedQuery = query.toLowerCase().trim();
+  if (searchCache.has(normalizedQuery)) {
+    console.log("Using cached results for:", normalizedQuery);
+    return searchCache.get(normalizedQuery)!;
+  }
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Find the current price of '${query}' in India at 3-4 major online retailers (like Amazon.in, Flipkart, Croma, Reliance Digital, JioMart, Tata Cliq). 
+      contents: `Find the current price of '${query}' in India at 3-4 major online retailers (like Amazon.in, Flipkart, Croma, Reliance Digital). 
       
       CRITICAL INSTRUCTIONS:
-      1. STRICTLY EXCLUDE YouTube, Facebook, Instagram, LinkedIn, Pinterest, or any video/social media links.
-      2. ONLY return direct e-commerce product page links where the item can be purchased immediately.
-      3. DO NOT return reviews or blog posts.
-      4. IMAGE REQUIREMENT: You MUST find a direct URL to the product image (ending in .jpg, .png, .webp). Do not return generic site logos. If a product image cannot be confidently found, set it to null.
+      1. STRICTLY EXCLUDE social media links.
+      2. ONLY return direct e-commerce product page links.
+      3. IMAGE REQUIREMENT: You MUST find a direct URL to the product image.
       
       Return a JSON array of objects. Each object must have:
-      - id: string (unique)
-      - name: string (precise product name)
-      - retailer: string (store name, e.g., "Amazon", "Flipkart")
-      - price: number (numeric value in INR)
-      - currency: string (symbol, usually ₹)
-      - url: string (direct buy link)
-      - inStock: boolean (true if available)
-      - image: string (A direct URL to the product image. If not found, leave as null)
-
-      Ensure the data is accurate based on the search results.`,
+      - id: string
+      - name: string
+      - retailer: string
+      - price: number (INR)
+      - currency: string (₹)
+      - url: string
+      - inStock: boolean
+      - image: string (or null)`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -56,12 +64,9 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     });
 
     if (response.text) {
-      // Guideline: When using googleSearch, the output might not strictly be JSON.
-      // We attempt to parse but must handle errors gracefully.
       try {
         const products = JSON.parse(response.text) as Product[];
-        // Filter out products with 0 price, missing essential data, or blacklisted domains
-        return products.filter(p => {
+        const filtered = products.filter(p => {
           const isValidData = p.price > 0 && p.name && p.url;
           const urlLower = p.url.toLowerCase();
           const isNotSocial = !urlLower.includes('youtube.com') && 
@@ -71,6 +76,13 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
                               !urlLower.includes('linkedin.com');
           return isValidData && isNotSocial;
         });
+
+        // Store in cache
+        if (filtered.length > 0) {
+            searchCache.set(normalizedQuery, filtered);
+        }
+        
+        return filtered;
       } catch (parseError) {
         console.error("Gemini grounding response parsing error:", parseError);
         return [];

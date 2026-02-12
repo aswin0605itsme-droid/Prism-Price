@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import PriceCard from './components/PriceCard';
 import ProductResult from './components/ProductResult';
+import ProductSkeleton from './components/ProductSkeleton';
 import ChatWidget from './components/ChatWidget';
 import ImageAnalysisModal from './components/ImageAnalysisModal';
 import ComparisonSidebar from './components/ComparisonSidebar';
@@ -11,6 +12,11 @@ import { searchProductsWithGrounding } from './services/geminiService';
 import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, Zap } from 'lucide-react';
 
 const App: React.FC = () => {
+  // Debug Log
+  useEffect(() => {
+    console.log("App Component Mounted");
+  }, []);
+
   // Currency State
   const [currency, setCurrency] = useState('INR');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -185,9 +191,10 @@ const App: React.FC = () => {
 
           <div className="min-h-[300px]">
             {isSearching ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-6"></div>
-                <p className="text-slate-400 animate-pulse">Scanning Indian retailers for best deals...</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((n) => (
+                  <ProductSkeleton key={n} />
+                ))}
               </div>
             ) : displayProducts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
