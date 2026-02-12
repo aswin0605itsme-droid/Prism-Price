@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import PriceCard from './components/PriceCard';
@@ -13,21 +12,16 @@ import { Sparkles, ArrowUp, ArrowDown, History, TrendingUp, AlertTriangle } from
 import GlassCard from './components/GlassCard';
 
 const App: React.FC = () => {
-  // API Config State
   const [isConfigured, setIsConfigured] = useState(true);
 
-  // Check API Configuration on mount
   useEffect(() => {
-    // Check if the service was able to initialize with the key
     const configured = isApiConfigured();
     setIsConfigured(configured);
-    
     if (!configured) {
         console.warn("App: Gemini API Key is missing. Please check your Vercel Environment Variables.");
     }
   }, []);
 
-  // Currency State
   const [currency, setCurrency] = useState('INR');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -37,7 +31,6 @@ const App: React.FC = () => {
   const [comparisonList, setComparisonList] = useState<Product[]>([]);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
-  // Load history from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('prism_search_history');
     if (saved) {
@@ -49,12 +42,10 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save history to localStorage
   useEffect(() => {
     localStorage.setItem('prism_search_history', JSON.stringify(searchHistory));
   }, [searchHistory]);
 
-  // Exchange Rates (Base: INR)
   const exchangeRates: Record<string, number> = {
     INR: 1,
     USD: 0.012,
@@ -108,7 +99,6 @@ const App: React.FC = () => {
     setProducts([]);
     setSortOption('default');
 
-    // Update History
     setSearchHistory(prev => {
       const filtered = prev.filter(h => h.toLowerCase() !== query.toLowerCase());
       return [query, ...filtered].slice(0, 6);
@@ -176,7 +166,7 @@ const App: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-bold text-white">API Key Missing</h3>
-                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the Vercel Environment Variables (VITE_GEMINI_API_KEY).</p>
+                        <p className="text-sm text-slate-300">Please configure your Google Gemini API Key in the Vercel Environment Variables.</p>
                     </div>
                 </div>
             </GlassCard>
@@ -185,7 +175,6 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         
-        {/* Subscriptions */}
         <div className="mb-20">
           <div className="flex items-center gap-3 mb-8">
              <h2 className="text-3xl font-bold text-white tracking-tight">Subscription Monitor</h2>
@@ -198,7 +187,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Product Section */}
         <div>
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div className="flex items-center gap-3">
@@ -242,7 +230,6 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-12">
-                {/* Search History Tags */}
                 {searchHistory.length > 0 && (
                   <div className="animate-in fade-in slide-in-from-top-4 duration-500">
                     <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -263,7 +250,6 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {/* Recommendations */}
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                   <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-indigo-400" /> Recommended For You
@@ -284,7 +270,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Empty State Instructions */}
                 <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-white/10 rounded-3xl bg-white/5">
                   <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-6 relative">
                       <Sparkles className="w-8 h-8 text-indigo-400" />

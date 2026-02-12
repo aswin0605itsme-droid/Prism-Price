@@ -3,7 +3,6 @@ import { Product } from "../types";
 
 // Client Getter - Initializes only when needed
 const getClient = (): GoogleGenAI | null => {
-  // Guidelines: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
@@ -12,7 +11,6 @@ const getClient = (): GoogleGenAI | null => {
   }
 
   try {
-    // Guidelines: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
     return new GoogleGenAI({ apiKey });
   } catch (error) {
     console.error("Prism: Failed to initialize Gemini Client.", error);
@@ -20,7 +18,6 @@ const getClient = (): GoogleGenAI | null => {
   }
 };
 
-// Helper: Check if API is ready (checks existence of key)
 export const isApiConfigured = (): boolean => {
   return !!process.env.API_KEY;
 };
@@ -29,9 +26,6 @@ export const isApiConfigured = (): boolean => {
 const searchCache = new Map<string, Product[]>();
 const suggestionCache = new Map<string, string[]>();
 
-/**
- * Search Products using Gemini Grounding (Google Search)
- */
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
   const ai = getClient();
   if (!ai) return [];
@@ -108,9 +102,6 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
   return [];
 };
 
-/**
- * Chat with AI Assistant
- */
 export const chatWithAI = async (message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[]) => {
   const ai = getClient();
   if (!ai) return "I'm offline right now. Please check your API key.";
@@ -132,9 +123,6 @@ export const chatWithAI = async (message: string, history: { role: 'user' | 'mod
   }
 };
 
-/**
- * Analyze Product Image
- */
 export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
   const ai = getClient();
   if (!ai) return "API Key missing.";
@@ -163,9 +151,6 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
   }
 };
 
-/**
- * Get Search Suggestions
- */
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   const ai = getClient();
   if (!ai || query.length < 2) return [];
