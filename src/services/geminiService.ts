@@ -1,180 +1,94 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product } from "../types";
 
-// Client Getter - Initializes only when needed
+// Initialize Gemini Client
 const getClient = (): GoogleGenAI | null => {
-  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
   const apiKey = process.env.API_KEY;
-  
   if (!apiKey) {
-    console.log("Prism: Waiting for API Key...");
+    console.warn("Prism: API Key is missing.");
     return null;
   }
-
-  try {
-    return new GoogleGenAI({ apiKey });
-  } catch (error) {
-    console.error("Prism: Failed to initialize Gemini Client.", error);
-    return null;
-  }
+  return new GoogleGenAI({ apiKey });
 };
 
-export const isApiConfigured = (): boolean => {
-  return !!process.env.API_KEY;
-};
+export const isApiConfigured = (): boolean => !!process.env.API_KEY;
 
-// Caching
+// Caches
 const searchCache = new Map<string, Product[]>();
-const suggestionCache = new Map<string, string[]>();
 
 export const searchProductsWithGrounding = async (query: string): Promise<Product[]> => {
   const ai = getClient();
   if (!ai) return [];
 
-  const normalizedQuery = query.toLowerCase().trim();
-  if (searchCache.has(normalizedQuery)) {
-    return searchCache.get(normalizedQuery)!;
-  }
+  const cacheKey = query.toLowerCase().trim();
+  if (searchCache.has(cacheKey)) return searchCache.get(cacheKey)!;
 
   try {
-    const productSchema = {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          name: { type: Type.STRING },
-          retailer: { type: Type.STRING },
-          price: { type: Type.NUMBER },
-          currency: { type: Type.STRING },
-          url: { type: Type.STRING },
-          inStock: { type: Type.BOOLEAN },
-          image: { type: Type.STRING },
-          rating: { type: Type.NUMBER, description: "Average product rating (0-5 stars)" },
-          reviewCount: { type: Type.NUMBER, description: "Total number of user reviews" }
-        },
-        required: ["id", "name", "retailer", "price", "currency", "url", "inStock"]
-      }
-    };
-
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [
         {
           role: 'user',
           parts: [{
-            text: `Search for the current price of '${query}' in India.
-            Find 3-4 distinct listings from major retailers like Amazon.in, Flipkart, Croma, or Reliance Digital.
-            
-            RULES:
-            - EXCLUDE social media (Youtube, Facebook, etc).
-            - EXCLUDE news articles or blogs.
-            - MUST return valid JSON matching the schema.
-            - For 'image', try to find a direct URL to the product image on the retailer's site.
-            - Try to extract 'rating' and 'reviewCount' if available on the page.
-            - If price is not found, set it to 0.`
+            text: `Find real-time pricing for "${query}" in India from major retailers (Amazon, Flipkart, Croma). 
+            Return 4 distinct items.
+            Exclude used items or accessories unless asked.
+            Must include valid image URLs if found.`
           }]
         }
       ],
       config: {
         responseMimeType: "application/json",
-        responseSchema: productSchema,
-        tools: [{ googleSearch: {} }],
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              name: { type: Type.STRING },
+              retailer: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+              currency: { type: Type.STRING },
+              url: { type: Type.STRING },
+              inStock: { type: Type.BOOLEAN },
+              image: { type: Type.STRING },
+              rating: { type: Type.NUMBER },
+            },
+            required: ["id", "name", "retailer", "price", "url"]
+          }
+        },
+        tools: [{ googleSearch: {} }]
       }
     });
 
-    const responseText = response.text;
-
-    if (responseText) {
-      let products: Product[] = [];
-      try {
-        products = JSON.parse(responseText) as Product[];
-      } catch (e) {
-        console.error("Failed to parse response", responseText);
-      }
+    if (response.text) {
+      const products = JSON.parse(response.text) as Product[];
+      // Filter out invalid items
+      const valid = products.filter(p => p.price > 0 && p.name).map(p => ({
+        ...p,
+        currency: p.currency || '₹',
+        inStock: p.inStock ?? true
+      }));
       
-      const validProducts = products.filter(p => {
-        const url = p.url?.toLowerCase() || "";
-        const isSocial = url.includes('youtube') || url.includes('twitter') || url.includes('instagram') || url.includes('facebook');
-        return p.price > 0 && p.name && !isSocial;
-      });
-
-      if (validProducts.length > 0) {
-        searchCache.set(normalizedQuery, validProducts);
-      }
-      return validProducts;
+      searchCache.set(cacheKey, valid);
+      return valid;
     }
   } catch (error) {
-    console.error("Prism: Search Error", error);
+    console.error("Prism Search Error:", error);
   }
-
   return [];
-};
-
-export const chatWithAI = async (message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[]) => {
-  const ai = getClient();
-  if (!ai) return "I'm offline right now. Please check your API key.";
-
-  try {
-    const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      history: history as any,
-      config: {
-        systemInstruction: "You are Prism, a helpful Indian shopping assistant. Help users compare prices in INR. Be concise."
-      }
-    });
-
-    const response = await chat.sendMessage({ message });
-    return response.text || "I'm having trouble connecting right now.";
-  } catch (error) {
-    console.error("Prism: Chat Error", error);
-    return "Sorry, I encountered an error.";
-  }
-};
-
-export const analyzeProductImage = async (base64Image: string, mimeType: string): Promise<string> => {
-  const ai = getClient();
-  if (!ai) return "API Key missing.";
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Image,
-              mimeType: mimeType,
-            },
-          },
-          {
-            text: "Analyze this image. Identify the product and any visible price tag. Convert price to INR if needed. Keep it short.",
-          },
-        ]
-      }
-    });
-
-    return response.text || "Could not analyze image.";
-  } catch (error) {
-    console.error("Prism: Vision Error", error);
-    return "Error processing image.";
-  }
 };
 
 export const getSearchSuggestions = async (query: string): Promise<string[]> => {
   const ai = getClient();
-  if (!ai || query.length < 2) return [];
-
-  const cacheKey = query.toLowerCase().trim();
-  if (suggestionCache.has(cacheKey)) return suggestionCache.get(cacheKey)!;
+  if (!ai) return [];
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: {
-        role: 'user',
-        parts: [{ text: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.` }]
-      },
+      contents: [{
+        parts: [{ text: `Suggest 5 specific shopping queries related to: "${query}". JSON Array only.` }]
+      }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -183,15 +97,46 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
         }
       }
     });
-
-    const responseText = response.text;
-    if (responseText) {
-      const suggestions = JSON.parse(responseText) as string[];
-      suggestionCache.set(cacheKey, suggestions);
-      return suggestions;
-    }
-  } catch (error) {
-    // Silent fail for suggestions
+    return response.text ? JSON.parse(response.text) : [];
+  } catch (e) {
+    return [];
   }
-  return [];
+};
+
+export const analyzeProductImage = async (base64Data: string, mimeType: string): Promise<string> => {
+  const ai = getClient();
+  if (!ai) return "API Key missing";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: {
+        parts: [
+          { inlineData: { data: base64Data, mimeType } },
+          { text: "Identify this product and estimate its price in INR. Be concise." }
+        ]
+      }
+    });
+    return response.text || "Could not analyze.";
+  } catch (e) {
+    console.error("Vision Error:", e);
+    return "Error analyzing image.";
+  }
+};
+
+export const chatWithAI = async (message: string, history: any[]) => {
+  const ai = getClient();
+  if (!ai) return "Offline";
+
+  try {
+    const chat = ai.chats.create({
+      model: 'gemini-3-flash-preview',
+      history: history,
+      config: { systemInstruction: "You are a helpful shopping assistant." }
+    });
+    const res = await chat.sendMessage({ message });
+    return res.text;
+  } catch (e) {
+    return "I'm having trouble right now.";
+  }
 };

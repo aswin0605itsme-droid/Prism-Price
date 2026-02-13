@@ -1,9 +1,8 @@
 {
   "name": "prism-price",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "rm -rf index.tsx main.tsx main.jsx index.css App.tsx components services types.ts || echo 'Cleanup failed, continuing...'",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -13,6 +12,8 @@
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.1",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

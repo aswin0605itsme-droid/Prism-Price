@@ -16,7 +16,6 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      // Polyfill process.env.API_KEY for browser usage
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
     },
     build: {
