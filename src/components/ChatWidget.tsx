@@ -4,9 +4,14 @@ import { chatWithAI } from '../services/geminiService';
 import GlassCard from './GlassCard';
 import { cn } from '../lib/utils';
 
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<{role: string, text: string}[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'model', text: 'Hi! I can help you find products or compare prices.' }
   ]);
   const [input, setInput] = useState('');
@@ -20,11 +25,17 @@ const ChatWidget = () => {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     const userMsg = input;
-    setMessages(p => [...p, { role: 'user', text: userMsg }]);
+    
+    // Create new message with explicit type
+    const newUserMessage: ChatMessage = { role: 'user', text: userMsg };
+    
+    setMessages(p => [...p, newUserMessage]);
     setInput('');
     setLoading(true);
 
+    // This now works because m.role is strictly 'user' | 'model'
     const history = messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+    
     const response = await chatWithAI(userMsg, history);
     
     setMessages(p => [...p, { role: 'model', text: response }]);
