@@ -57,7 +57,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: [
         {
           role: 'user',
@@ -111,7 +111,7 @@ export const chatWithAI = async (message: string, history: { role: 'user' | 'mod
 
   try {
     const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       history: history as any,
       config: {
         systemInstruction: "You are Prism, a helpful Indian shopping assistant. Help users compare prices in INR. Be concise."
@@ -132,7 +132,7 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       contents: {
         parts: [
           {
@@ -163,7 +163,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-flash",
       contents: {
         role: 'user',
         parts: [{ text: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.` }]
