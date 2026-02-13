@@ -3,7 +3,8 @@ import { Product } from "../types";
 
 // Client Getter - Initializes only when needed
 const getClient = (): GoogleGenAI | null => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
     console.log("Prism: Waiting for API Key...");
@@ -19,7 +20,7 @@ const getClient = (): GoogleGenAI | null => {
 };
 
 export const isApiConfigured = (): boolean => {
-  return !!import.meta.env.VITE_GEMINI_API_KEY;
+  return !!process.env.API_KEY;
 };
 
 // Caching
@@ -57,7 +58,7 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           role: 'user',
@@ -85,7 +86,12 @@ export const searchProductsWithGrounding = async (query: string): Promise<Produc
     const responseText = response.text;
 
     if (responseText) {
-      const products = JSON.parse(responseText) as Product[];
+      let products: Product[] = [];
+      try {
+        products = JSON.parse(responseText) as Product[];
+      } catch (e) {
+        console.error("Failed to parse response", responseText);
+      }
       
       const validProducts = products.filter(p => {
         const url = p.url?.toLowerCase() || "";
@@ -111,7 +117,7 @@ export const chatWithAI = async (message: string, history: { role: 'user' | 'mod
 
   try {
     const chat = ai.chats.create({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       history: history as any,
       config: {
         systemInstruction: "You are Prism, a helpful Indian shopping assistant. Help users compare prices in INR. Be concise."
@@ -132,7 +138,7 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           {
@@ -147,6 +153,7 @@ export const analyzeProductImage = async (base64Image: string, mimeType: string)
         ]
       }
     });
+
     return response.text || "Could not analyze image.";
   } catch (error) {
     console.error("Prism: Vision Error", error);
@@ -163,7 +170,7 @@ export const getSearchSuggestions = async (query: string): Promise<string[]> => 
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3-flash-preview",
       contents: {
         role: 'user',
         parts: [{ text: `Generate 5-8 short, relevant shopping search queries based on: "${query}". Return a JSON array of strings.` }]

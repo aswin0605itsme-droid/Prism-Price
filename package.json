@@ -1,27 +1,28 @@
 {
-  "name": "prism-app",
-  "private": true,
+  "name": "prism-price",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "rm -rf index.tsx main.tsx main.jsx index.css App.tsx components services types.ts || echo 'Cleanup failed, continuing...'",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "lucide-react": "^0.344.0",
-    "@google/genai": "^0.0.2"
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.38",
-    "tailwindcss": "^3.4.4",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5.2.2",
-    "vite": "^5.3.1"
+    "vite": "^5.4.2"
   }
 }
